@@ -6,35 +6,17 @@ import java.util.HashMap;
 
 import util.LoadSave;
 
-public class Player {
-
-    private int x = 150, y = 400;
-    private int width = 128, height = 128;
-    private float scale = 1.5f;// Scale it up a bit so it's visible
-
+public class Player extends Entity{
     // Movement flags from earlier
     private boolean up, down, left, right, jump,attacking;
-    private int speed = 1;
-
     // --- Sprite Management ---
-
     private int aniTick, aniIndex, aniSpeed = 20; // Lower number means faster animation
     //private int playerAction = 0; // 0 = IDLE, 1 = RUNNING, etc.
-    private String currentState = "IDLE";
-
-    // --- Physics & Gravity ---
-    private int floorY = 400; // The absolute bottom line of your screen
-    private float airSpeed = 0f; // Current upward/downward momentum
-    private float gravity = 0.15f; // How fast he gets pulled down
-    private float jumpSpeed = -7.5f; // Initial upward burst (Negative moves UP)
-    private boolean inAir = false; // Is he currently jumping/falling?
-    private boolean jumpImpulseApplied = false; // Has the physics kicked in yet?
-    private int jumpTakeoffFrame = 2; // Which frame of the animation do his feet leave the floor?
-    private float horizontalAirSpeed = 0f; // Stores left/right momentum during a jump
-
+    //private String currentState = "IDLE";
     private HashMap<String, BufferedImage[]> animations = new HashMap<>();
 
-    public Player() {
+    public Player(float x, float y,int width, int height) {
+        super(x,y,width,height);
         loadAnimations();
     }
 
@@ -54,6 +36,7 @@ public class Player {
 
     public void update() {
         updatePosition();
+        updateCollisionBoxes(); // NEW: Move the boxes with the player!
         setAnimation();
         updateAnimationTick();
     }
@@ -111,10 +94,23 @@ public class Player {
                     aniIndex = 0;
                 }
             }
+            if (currentState.equals("ATTACK_PUNCH") && (aniIndex >= 3 && aniIndex <= 5)) {
+                attackActive = true;
+            } else {
+                attackActive = false;
+            }
         }
     }
 
     private void updatePosition() {
+        if (isHit) {
+            stunTick++;
+            if (stunTick >= stunDuration) {
+                isHit = false; // Break out of stun!
+            }
+            // EXIT EARLY! Do not process normal animations or movement.
+            return;
+        }
         if (down && !inAir) {
             return;
         }
@@ -166,36 +162,28 @@ public class Player {
         }
         // --- THE SCREEN BORDERS ---
         // 1. Define a static body width (adjust this until he stops perfectly at the edge)
-        int logicalBodyWidth = 60;
-
-        // 2. The Left Wall
-        if (x - (logicalBodyWidth / 2) < 0) {
-            x = logicalBodyWidth / 2;
-        }
-
-        // 3. The Right Wall
-        // (Assuming your window is 800 pixels wide. If you used Kaarin's Game.GAME_WIDTH constant, replace 800 with Game.GAME_WIDTH)
-        if (x + (logicalBodyWidth / 2) > 800) {
-            x = 800 - (logicalBodyWidth / 2);
-        }
+        enforceScreenBorders();
     }
 
     public void draw(Graphics g) {
-        // Instead of g.fillRect(Color.BLUE), we draw the exact subimage frame!
         BufferedImage[] currentAnimArray = animations.get(currentState);
+
         if (currentAnimArray != null && currentAnimArray[aniIndex] != null) {
-            int actualFrameIndex = aniIndex;
-            if (currentState.equals("JUMP_FLIP") && horizontalAirSpeed < 0) {
-                actualFrameIndex = (currentAnimArray.length - 1) - aniIndex;
-            }
-            BufferedImage currentFrame = currentAnimArray[actualFrameIndex];
-            // 1. Get the natural size of THIS specific frame and scale it up
+            BufferedImage currentFrame = currentAnimArray[aniIndex];
+
             int drawWidth = (int) (currentFrame.getWidth() * scale);
             int drawHeight = (int) (currentFrame.getHeight() * scale);
-            // 2. Calculate the Anchor Point (Center his body, plant his feet on the 'y' line)
-            int drawX = x - (drawWidth / 2);
-            int drawY = y - drawHeight;
-            g.drawImage(currentFrame, drawX, drawY, drawWidth, drawHeight, null);        }
+
+            int drawX = (int) (x - (drawWidth / 2));
+            int drawY = (int) (y - drawHeight);
+
+            // --- THE FLIP MATH ---
+            // If facing right, draw normally. If facing left, shift the start point to the right edge and draw backward!
+            int flipX = facingRight ? 0 : drawWidth;
+            int flipW = facingRight ? 1 : -1;
+
+            g.drawImage(currentFrame, drawX + flipX, drawY, drawWidth * flipW, drawHeight, null);
+        }
     }
 
     // ... Keep your getters and setters down here ...

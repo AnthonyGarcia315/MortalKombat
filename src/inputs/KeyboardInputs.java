@@ -3,6 +3,7 @@ package inputs;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import main.GamePanel;
+import main.GameState;
 
 public class KeyboardInputs implements KeyListener {
 
@@ -35,6 +36,14 @@ public class KeyboardInputs implements KeyListener {
                 break;
             case KeyEvent.VK_SPACE:
                 gamePanel.getGame().getPlayer().setAttacking(true);
+                break;
+            case KeyEvent.VK_ENTER:
+                if (GameState.state == GameState.MENU) {
+                    GameState.state = GameState.PLAYING;
+                } else if (GameState.state == GameState.GAME_OVER) {
+                    // Later, you will also need to reset health to 100 here!
+                    GameState.state = GameState.MENU;
+                }
                 break;
         }
     }
