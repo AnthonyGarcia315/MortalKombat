@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.util.HashMap;
 
 import util.LoadSave;
+import java.util.LinkedList;
 
 public class Player extends Entity{
     // Movement flags from earlier
@@ -14,10 +15,20 @@ public class Player extends Entity{
     //private int playerAction = 0; // 0 = IDLE, 1 = RUNNING, etc.
     //private String currentState = "IDLE";
     private HashMap<String, BufferedImage[]> animations = new HashMap<>();
+    private LinkedList<InputEvent> inputBuffer = new LinkedList<>();
+    private long currentFrame = 0; // Tracks game time for the buffer
+    private final long BUFFER_WINDOW = 15; // How many frames an input stays "alive"
+    // Add this near your attacking boolean
+    private int comboStep = 0;
+
 
     public Player(float x, float y,int width, int height) {
         super(x,y,width,height);
         loadAnimations();
+    }
+    public void registerInput(InputEvent.Button button) {
+        // Add the new button press to the end of the queue
+        inputBuffer.addLast(new InputEvent(button, currentFrame));
     }
 
     private void loadAnimations() {
@@ -32,13 +43,40 @@ public class Player extends Entity{
 
         // If you download his walk...
         animations.put("WALK", LoadSave.GetSpriteSequence("/subzero/walk/subzero_walk_", 9));
+        animations.put("ATTACK_PUNCH_2", animations.get("ATTACK_PUNCH"));
+        animations.put("ATTACK_PUNCH_3", animations.get("ATTACK_PUNCH"));
     }
 
     public void update() {
+        currentFrame++;
+        cleanBuffer();
+        processBuffer();
+
         updatePosition();
         updateCollisionBoxes(); // NEW: Move the boxes with the player!
         setAnimation();
         updateAnimationTick();
+    }
+    private void cleanBuffer() {
+        // Remove inputs that are older than our 15-frame window
+        while (!inputBuffer.isEmpty() && (currentFrame - inputBuffer.getFirst().frame > BUFFER_WINDOW)) {
+            inputBuffer.removeFirst();
+        }
+    }
+    private void processBuffer() {
+        if (inputBuffer.isEmpty()) return;
+
+        // Only allow a new attack if we aren't currently locked in an attack animation
+        // OR if we are in the recovery frames of a previous attack (Combo linking!)
+        if (!attacking || (currentState.equals("ATTACK_PUNCH") && aniIndex >= 6)) {
+
+            InputEvent oldestValidInput = inputBuffer.getFirst();
+
+            if (oldestValidInput.button == InputEvent.Button.PUNCH) {
+                attacking = true;
+                inputBuffer.removeFirst(); // Consume the input so it doesn't trigger twice
+            }
+        }
     }
 
     private void setAnimation() {
@@ -78,26 +116,36 @@ public class Player extends Entity{
             aniTick = 0;
             aniIndex++;
 
-            int currentAnimLength = animations.get(currentState).length;
-
-            if (aniIndex >= currentAnimLength) {
-                if (currentState.equals("CROUCH") || currentState.equals("JUMP")) {
-                    aniIndex = currentAnimLength - 1;
-                }
-                // THE FIX: Turn off the attacking flag when the punch finishes!
-                else if (currentState.equals("ATTACK_PUNCH")) {
-                    attacking = false; // This unlocks the state machine!
-                    currentState = "IDLE";
-                    aniIndex = 0;
-                }
-                else {
-                    aniIndex = 0;
+            // --- 1. HITBOX PULSE LOGIC ---
+            // This needs to happen EVERY time the frame changes,
+            // so we put it OUTSIDE the "end of animation" check below.
+            if (currentState.equals("ATTACK_PUNCH")) {
+                if (aniIndex == 2 || aniIndex == 5 || aniIndex == 8) {
+                    attackActive = true;
+                } else {
+                    attackActive = false;
                 }
             }
-            if (currentState.equals("ATTACK_PUNCH") && (aniIndex >= 3 && aniIndex <= 5)) {
-                attackActive = true;
-            } else {
-                attackActive = false;
+
+            int currentAnimLength = animations.get(currentState).length;
+
+            // --- 2. END OF ANIMATION LOGIC ---
+            // What should the game do when we run out of frames?
+            if (aniIndex >= currentAnimLength) {
+
+                if (currentState.equals("CROUCH") || currentState.equals("JUMP")) {
+                    aniIndex = currentAnimLength - 1; // Freeze on the last frame
+                }
+                else if (currentState.equals("ATTACK_PUNCH")) {
+                    // THE FIX: Reset everything back to normal!
+                    attacking = false;
+                    currentState = "IDLE";
+                    aniIndex = 0; // Reset the clock so we don't crash!
+                    attackActive = false; // Safety catch
+                }
+                else {
+                    aniIndex = 0; // Default loop for things like IDLE and WALK
+                }
             }
         }
     }
