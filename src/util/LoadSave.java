@@ -76,6 +76,22 @@ public class LoadSave {
                 }
             }
         }
+
+        // If CharacterRegistry's frame count overshoots how many sprites
+        // actually exist on disk, the tail of this array is all nulls.
+        // Trim them instead of returning them -- otherwise the animation
+        // would flash invisible for a tick every time it reached one of
+        // those missing indices (draw() silently skips null frames).
+        int lastReal = arr.length - 1;
+        while (lastReal >= 0 && arr[lastReal] == null) {
+            lastReal--;
+        }
+        if (lastReal < arr.length - 1) {
+            System.out.println("\u26A0\uFE0F " + baseName + " requested " + frameCount
+                    + " frames but only found " + (lastReal + 1) + " on disk -- trimming to match.");
+            arr = java.util.Arrays.copyOf(arr, lastReal + 1);
+        }
+
         return arr;
     }
 }

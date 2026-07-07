@@ -4,7 +4,7 @@ public class Enemy extends Fighter {
 
     private Player player;
     private int aiActionTimer = 0; // Prevents the AI from spamming attacks every single frame
-    private int actionDelay = 90;  // How long the AI waits before making a new decision
+    private int actionDelay = 60;  // How long the AI waits before making a new decision
     private Game game;
     public Enemy(float x, float y, int width, int height, String characterName, Player player,Game game) {
         super(x, y, width, height, characterName);
@@ -33,7 +33,7 @@ public class Enemy extends Fighter {
             if (aiActionTimer >= actionDelay) {
                 makeDecision();
                 aiActionTimer = 0; // Reset timer after making a move
-                actionDelay = 90 + (int)(Math.random() * 60); // Randomize the next delay so they aren't totally predictable
+                actionDelay = 20 + (int)(Math.random() * 30); // Randomize the next delay so they aren't totally predictable
             } else if (currentState.equals("IDLE") || currentState.equals("WALK")) {
                 // Default behavior while waiting to attack: slowly walk towards the player
                 float distance = Math.abs(player.getX() - this.x);
@@ -100,42 +100,43 @@ public class Enemy extends Fighter {
         int randomMove = (int) (Math.random() * 100);
 
         if (distance > 200) {
-            // OUTSIDE RANGE: Close the gap or throw a projectile
-            if (randomMove < 30) {
-                attacking = true;
-                currentAttack = "ICE_BALL";
-            } else if (randomMove < 60) {
-                attacking = true;
-                currentAttack = "SLIDE";
+            // OUTSIDE RANGE: throw out a special move if this character has
+            // one (whatever it's called -- ICE_BALL, SPEAR, etc.), otherwise
+            // just keep closing the gap (handled by the WALK logic below).
+            if (!specialMoves.isEmpty() && randomMove < 60) {
+                SpecialMove chosen = specialMoves.get((int) (Math.random() * specialMoves.size()));
+                startAttack(chosen.moveName);
             }
         } else if (distance > 70 && distance <= 200) {
             // STRIKING RANGE: Perfect for kicks or sweeps
-            attacking = true;
             if (randomMove < 40) {
-                currentAttack = "ATTACK_KICK";
+                startAttack("ATTACK_KICK");
             } else if (randomMove < 80) {
-                currentAttack = "SWEEP";
+                startAttack("SWEEP");
             } else {
-                currentAttack = "JUMP_KICK";
+                startAttack("JUMP_KICK");
                 inAir = true;
                 airSpeed = jumpSpeed;
                 horizontalAirSpeed = facingRight ? speed * 2 : -speed * 2;
             }
         } else {
             // IN THE POCKET: Close combat
-            attacking = true;
             if (randomMove < 40) {
-                currentAttack = "ATTACK_PUNCH";
+                startAttack("ATTACK_PUNCH");
             } else if (randomMove < 70) {
-                currentAttack = "UPPERCUT";
+                startAttack("UPPERCUT");
             } else {
-                currentAttack = "THROW";
+                startAttack("THROW");
             }
         }
-        if (attacking) {
-            currentState = currentAttack;
-            aniIndex = 0;
-            aniTick = 0;
-        }
+    }
+
+    /** Every character's baseMoveSet guarantees these normal moves exist, so no need to check. */
+    private void startAttack(String moveName) {
+        attacking = true;
+        currentAttack = moveName;
+        currentState = currentAttack;
+        aniIndex = 0;
+        aniTick = 0;
     }
 }

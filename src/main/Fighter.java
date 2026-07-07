@@ -22,6 +22,8 @@ public abstract class Fighter extends Entity {
     protected String characterName;
     protected HashMap<String, BufferedImage[]> animations = new HashMap<>();
     protected HashMap<String, Move> moveSet = new HashMap<>();
+    protected CharacterData characterData;
+    protected java.util.List<SpecialMove> specialMoves;
 
     protected int aniTick, aniIndex;
     protected int aniSpeed = 20;
@@ -40,12 +42,14 @@ public abstract class Fighter extends Entity {
     // Player.updatePosition(), which is what actually ends the attack, since
     // holding the last frame means "attacking" never resets on its own.
     private static final String[] HOLD_LAST_FRAME_STATES = {
-            "CROUCH", "JUMP", "JUMP_FLIP", "BLOCK", "JUMP_KICK", "JUMP_PUNCH","ICE_BALL","CROUCH_BLOCK"
+            "CROUCH", "JUMP", "JUMP_FLIP", "BLOCK", "JUMP_KICK", "JUMP_PUNCH","CROUCH_BLOCK"
     };
 
     public Fighter(float x, float y, int width, int height, String characterName) {
         super(x, y, width, height);
         this.characterName = characterName;
+        this.characterData = CharacterRegistry.getData(characterName);
+        this.specialMoves = characterData.specialMoves;
         loadAnimations();
         defineMoveSet();
     }
@@ -59,37 +63,42 @@ public abstract class Fighter extends Entity {
         String basePath = "/" + characterName + "/";
         String prefix = characterName + "_";
 
-        BufferedImage[] idleAnim = LoadSave.GetSpriteSequence(basePath + "idle/" + prefix + "idle_", 9);
+        BufferedImage[] idleAnim = LoadSave.GetSpriteSequence(basePath + "idle/" + prefix + "idle_", frames("IDLE", 9));
         animations.put("IDLE", idleAnim);
-        animations.put("CROUCH_BLOCK", loadOrDefault(basePath + "lowBlock/" + prefix + "lblock_", 2, idleAnim));
-        animations.put("WALK", loadOrDefault(basePath + "walk/" + prefix + "walk_", 9, idleAnim));
-        animations.put("CROUCH", loadOrDefault(basePath + "crouch/" + prefix + "crouch_", 3, idleAnim));
-        animations.put("JUMP", loadOrDefault(basePath + "jump/" + prefix + "jump_", 3, idleAnim));
-        animations.put("JUMP_FLIP", loadOrDefault(basePath + "jump/" + prefix + "jumpflip_", 8, idleAnim));
-        animations.put("BLOCK", loadOrDefault(basePath + "highBlock/" + prefix + "hblock_", 3, idleAnim));
+        animations.put("CROUCH_BLOCK", loadOrDefault(basePath + "lowBlock/" + prefix + "lblock_", frames("CROUCH_BLOCK", 2), idleAnim));
+        animations.put("WALK", loadOrDefault(basePath + "walk/" + prefix + "walk_", frames("WALK", 9), idleAnim));
+        animations.put("CROUCH", loadOrDefault(basePath + "crouch/" + prefix + "crouch_", frames("CROUCH", 3), idleAnim));
+        animations.put("JUMP", loadOrDefault(basePath + "jump/" + prefix + "jump_", frames("JUMP", 3), idleAnim));
+        animations.put("JUMP_FLIP", loadOrDefault(basePath + "jump/" + prefix + "jumpflip_", frames("JUMP_FLIP", 8), idleAnim));
+        animations.put("BLOCK", loadOrDefault(basePath + "highBlock/" + prefix + "hblock_", frames("BLOCK", 3), idleAnim));
 
-        animations.put("ATTACK_PUNCH", loadOrDefault(basePath + "attackPunch/" + prefix + "punch_", 9, idleAnim));
-        animations.put("ATTACK_KICK", loadOrDefault(basePath + "kicking/" + prefix + "kick_", 7, idleAnim));
-        animations.put("UPPERCUT", loadOrDefault(basePath + "uppercut/" + prefix + "uppercut_", 5, idleAnim));
-        animations.put("JUMP_PUNCH", loadOrDefault(basePath + "jumpPunch/" + prefix + "jumpPunch_", 3, idleAnim));
-        animations.put("JUMP_KICK", loadOrDefault(basePath + "jumpKick/" + prefix + "jumpkick_", 4, idleAnim));
-        animations.put("CROUCH_KICK", loadOrDefault(basePath + "crouchKick/" + prefix + "crouchKick_", 3, idleAnim));
-        animations.put("SWEEP", loadOrDefault(basePath + "sweep/" + prefix + "sweep_", 6, idleAnim));
+        animations.put("ATTACK_PUNCH", loadOrDefault(basePath + "attackPunch/" + prefix + "punch_", frames("ATTACK_PUNCH", 9), idleAnim));
+        animations.put("ATTACK_KICK", loadOrDefault(basePath + "kicking/" + prefix + "kick_", frames("ATTACK_KICK", 7), idleAnim));
+        animations.put("UPPERCUT", loadOrDefault(basePath + "uppercut/" + prefix + "uppercut_", frames("UPPERCUT", 5), idleAnim));
+        animations.put("JUMP_PUNCH", loadOrDefault(basePath + "jumpPunch/" + prefix + "jumpPunch_", frames("JUMP_PUNCH", 3), idleAnim));
+        animations.put("JUMP_KICK", loadOrDefault(basePath + "jumpKick/" + prefix + "jumpkick_", frames("JUMP_KICK", 4), idleAnim));
+        animations.put("CROUCH_KICK", loadOrDefault(basePath + "crouchKick/" + prefix + "crouchKick_", frames("CROUCH_KICK", 3), idleAnim));
+        animations.put("SWEEP", loadOrDefault(basePath + "sweep/" + prefix + "sweep_", frames("SWEEP", 6), idleAnim));
 
-        // NEW: getting-hit reactions, throw, and getting-thrown.
-        // I'm guessing at folder names / frame counts here, following the
-        // same convention as everything above ("<state>/" + prefix +
-        // "<state>_" + i + ".gif"). If your actual folders or frame counts
-        // are different, just adjust the strings/numbers on these six lines
-        // — nothing else needs to change.
-        animations.put("HIT_HIGH", loadOrDefault(basePath + "hitHigh/" + prefix + "hitHigh_", 3, idleAnim));
-        animations.put("HIT_LOW", loadOrDefault(basePath + "hitLow/" + prefix + "hitLow_", 3, idleAnim));
-        animations.put("HIT_CROUCH", loadOrDefault(basePath + "hitCrouch/" + prefix + "hitCrouch_", 3, idleAnim));
-        animations.put("THROW", loadOrDefault(basePath + "throw/" + prefix + "throw_", 6, idleAnim));
-        animations.put("THROWN", loadOrDefault(basePath + "thrown/" + prefix + "thrown_", 5, idleAnim));
+        animations.put("HIT_HIGH", loadOrDefault(basePath + "hitHigh/" + prefix + "hitHigh_", frames("HIT_HIGH", 3), idleAnim));
+        animations.put("HIT_LOW", loadOrDefault(basePath + "hitLow/" + prefix + "hitLow_", frames("HIT_LOW", 3), idleAnim));
+        animations.put("HIT_CROUCH", loadOrDefault(basePath + "hitCrouch/" + prefix + "hitCrouch_", frames("HIT_CROUCH", 3), idleAnim));
+        animations.put("THROW", loadOrDefault(basePath + "throw/" + prefix + "throw_", frames("THROW", 6), idleAnim));
+        animations.put("THROWN", loadOrDefault(basePath + "thrown/" + prefix + "thrown_", frames("THROWN", 5), idleAnim));
 
-        animations.put("ICE_BALL", loadOrDefault(basePath + "iceBall/" + prefix + "iceBall_", 3, idleAnim));
-        animations.put("SLIDE", loadOrDefault(basePath + "slide/" + prefix + "slide_", 2, idleAnim));
+        // Character-specific special moves (ICE_BALL, SPEAR, whatever else
+        // this character's CharacterData defines) -- loaded generically so
+        // adding a new special never requires touching Fighter.java again.
+        for (java.util.Map.Entry<String, String> entry : characterData.specialFolders.entrySet()) {
+            String state = entry.getKey();
+            String folder = entry.getValue();
+            animations.put(state, loadOrDefault(basePath + folder + "/" + prefix + folder + "_", frames(state, 3), idleAnim));
+        }
+    }
+
+    /** Looks up this character's frame count for a state, falling back to the shared default. */
+    private int frames(String state, int fallback) {
+        return characterData.frameCounts.getOrDefault(state, fallback);
     }
 
     protected BufferedImage[] loadOrDefault(String path, int frames, BufferedImage[] defaultAnim) {
@@ -108,32 +117,14 @@ public abstract class Fighter extends Entity {
      * read from a per-character data file.
      */
     protected void defineMoveSet() {
-        // I've added a damage value (e.g., 5, 8, 12) to the end of every move
-        moveSet.put("ATTACK_PUNCH", new Move(9, 3, 5, 0, 100, 45, 25, Move.HitLevel.HIGH, 5));
-        moveSet.put("ATTACK_KICK", new Move(7, 2, 4, 5, 60, 55, 25, Move.HitLevel.HIGH, 8));
-
-        // Uppercuts hit hard!
-        moveSet.put("UPPERCUT", new Move(5, 1, 3, -5, 150, 35, 90, Move.HitLevel.HIGH, 12));
-
-        moveSet.put("JUMP_PUNCH", new Move(3, 0, 2, 0, 90, 45, 25, Move.HitLevel.HIGH, 6));
-        moveSet.put("JUMP_KICK", new Move(5, 1, 3, 10, 40, 60, 30, Move.HitLevel.HIGH, 9));
-        moveSet.put("CROUCH_KICK", new Move(3, 0, 2, 0, 20, 40, 20, Move.HitLevel.LOW, 4));
-        moveSet.put("SWEEP", new Move(6, 2, 4, 15, 10, 70, 20, Move.HitLevel.LOW, 7));
-
-        // ICE_BALL damage is handled separately (it freezes instead), but we still need a default value to satisfy the constructor
-        moveSet.put("ICE_BALL", new Move(6, 3, 5, 0, 105, 40, 50, Move.HitLevel.HIGH, 0));
-
-        moveSet.put("SLIDE", new Move(4, 1, 3, 0, 110, 50, 20, Move.HitLevel.LOW, 8));
-
-        // Throws do damage via getThrown(), but we satisfy the constructor with 0
-        moveSet.put("THROW", new Move(6, 1, 3, -10, 120, 40, 60, Move.HitLevel.HIGH, 0));
+        moveSet.putAll(characterData.moveSet);
     }
 
     private boolean holdsLastFrame(String state) {
         for (String s : HOLD_LAST_FRAME_STATES) {
             if (s.equals(state)) return true;
         }
-        return false;
+        return characterData.holdLastFrameStates.contains(state);
     }
 
     /**

@@ -38,12 +38,12 @@ public class CharacterSelect {
 
     private void initSlots() {
         slots = new Rectangle[7];
-        int bw = (int) (116 * Game.SCALE);
-        int bh = (int) (90 * Game.SCALE);
-        int gapX = (int) (24 * Game.SCALE);
-        int startX = (int) (75 * Game.SCALE);
-        int startY = (int) (80 * Game.SCALE);
-        int gapY = (int) (20 * Game.SCALE);
+        int bw = (int) (118 * Game.SCALE);
+        int bh = (int) (95 * Game.SCALE);
+        int gapX = (int) (22 * Game.SCALE);
+        int startX = (int) (72 * Game.SCALE);
+        int startY = (int) (75 * Game.SCALE);
+        int gapY = (int) (15 * Game.SCALE);
 
         slots[0] = new Rectangle(startX, startY, bw, bh);
         slots[1] = new Rectangle(startX + bw + gapX, startY, bw, bh);

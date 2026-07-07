@@ -21,16 +21,38 @@ public class Player extends Fighter {
     public void registerInput(InputEvent.Button button) {
         inputBuffer.addLast(new InputEvent(button, currentFrame));
     }
-    private boolean checkCombo(InputEvent.Button b1, InputEvent.Button b2, InputEvent.Button b3) {
-        if (inputBuffer.size() < 3) return false;
+    /**
+     * Checks whether the tail of the input buffer matches an arbitrary
+     * (already facing-resolved) sequence of buttons, oldest-to-newest.
+     */
+    private boolean checkSequence(java.util.List<InputEvent.Button> sequence) {
+        if (inputBuffer.size() < sequence.size()) return false;
 
-        // Read the LinkedList from newest (last) to oldest
         java.util.Iterator<InputEvent> it = inputBuffer.descendingIterator();
-        InputEvent third = it.next();
-        InputEvent second = it.next();
-        InputEvent first = it.next();
+        InputEvent[] recent = new InputEvent[sequence.size()];
+        for (int i = 0; i < sequence.size(); i++) {
+            recent[i] = it.next(); // recent[0] = newest input
+        }
+        for (int i = 0; i < sequence.size(); i++) {
+            InputEvent.Button expected = sequence.get(sequence.size() - 1 - i);
+            if (recent[i].button != expected) return false;
+        }
+        return true;
+    }
 
-        return first.button == b1 && second.button == b2 && third.button == b3;
+    /** Turns a special move's abstract FORWARD/BACK into real LEFT/RIGHT based on current facing. */
+    private java.util.List<InputEvent.Button> resolveSequence(java.util.List<InputEvent.Button> abstractSeq) {
+        java.util.List<InputEvent.Button> resolved = new java.util.ArrayList<>();
+        for (InputEvent.Button b : abstractSeq) {
+            if (b == InputEvent.Button.FORWARD) {
+                resolved.add(facingRight ? InputEvent.Button.RIGHT : InputEvent.Button.LEFT);
+            } else if (b == InputEvent.Button.BACK) {
+                resolved.add(facingRight ? InputEvent.Button.LEFT : InputEvent.Button.RIGHT);
+            } else {
+                resolved.add(b);
+            }
+        }
+        return resolved;
     }
 
     public void update() {
@@ -71,20 +93,14 @@ public class Player extends Fighter {
         if (inputBuffer.isEmpty()) return;
 
         if (!attacking || (currentState.equals("ATTACK_PUNCH") && aniIndex >= 6)) {
-            InputEvent.Button forward = facingRight ? InputEvent.Button.RIGHT : InputEvent.Button.LEFT;
-            InputEvent.Button backward = facingRight ? InputEvent.Button.LEFT : InputEvent.Button.RIGHT;
-            // --- SPECIAL MOVES (Combos must be checked first!) ---
-            if (checkCombo(backward, forward, InputEvent.Button.KICK)) {
-                attacking = true;
-                currentAttack = "SLIDE";
-                inputBuffer.clear(); // Clear the buffer so we don't accidentally kick right after
-                return;
-            }
-            if (checkCombo(InputEvent.Button.DOWN, forward, InputEvent.Button.PUNCH)) {
-                attacking = true;
-                currentAttack = "ICE_BALL";
-                inputBuffer.clear();
-                return;
+            // --- SPECIAL MOVES (character-specific; checked before normal moves) ---
+            for (SpecialMove special : specialMoves) {
+                if (checkSequence(resolveSequence(special.sequence))) {
+                    attacking = true;
+                    currentAttack = special.moveName;
+                    inputBuffer.clear(); // Clear the buffer so we don't accidentally re-trigger it
+                    return;
+                }
             }
 
             // --- NORMAL MOVES ---
