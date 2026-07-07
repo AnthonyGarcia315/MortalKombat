@@ -4,7 +4,7 @@ public class Enemy extends Fighter {
 
     private Player player;
     private int aiActionTimer = 0; // Prevents the AI from spamming attacks every single frame
-    private int actionDelay = 60;  // How long the AI waits before making a new decision
+    private int actionDelay = 90;  // How long the AI waits before making a new decision
     private Game game;
     public Enemy(float x, float y, int width, int height, String characterName, Player player,Game game) {
         super(x, y, width, height, characterName);
@@ -33,7 +33,7 @@ public class Enemy extends Fighter {
             if (aiActionTimer >= actionDelay) {
                 makeDecision();
                 aiActionTimer = 0; // Reset timer after making a move
-                actionDelay = 20 + (int)(Math.random() * 30); // Randomize the next delay so they aren't totally predictable
+                actionDelay = 90 + (int)(Math.random() * 60); // Randomize the next delay so they aren't totally predictable
             } else if (currentState.equals("IDLE") || currentState.equals("WALK")) {
                 // Default behavior while waiting to attack: slowly walk towards the player
                 float distance = Math.abs(player.getX() - this.x);

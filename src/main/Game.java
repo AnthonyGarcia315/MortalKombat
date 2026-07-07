@@ -3,6 +3,7 @@ package main;
 import util.LoadSave;
 
 import java.awt.Graphics;
+import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 
 public class Game implements Runnable {
@@ -27,6 +28,8 @@ public class Game implements Runnable {
 
     private Player player;
     private Enemy enemy;
+    private GameStates.CharacterSelect characterSelect;
+    private BufferedImage charSelectImg;
     public Game() {
         player = new Player(150, 425, 68, 135, "subzero",this);
         // Enemy now takes a characterName the same way Player does — swap
@@ -36,6 +39,8 @@ public class Game implements Runnable {
         // Load your background image here!
         backgroundImg = LoadSave.GetSprite("/bg.png");
         titleScreenImg = LoadSave.GetSprite("/title.png");
+        charSelectImg = LoadSave.GetSprite("/Select_mk1.png"); // Load your select background
+        characterSelect = new GameStates.CharacterSelect(this);
         gamePanel = new GamePanel(this);
 
         // Create the window right here in the Game class
@@ -53,6 +58,9 @@ public class Game implements Runnable {
     private void startGameLoop() {
         gameThread = new Thread(this);
         gameThread.start();
+    }
+    public GameStates.CharacterSelect getCharacterSelect() {
+        return characterSelect;
     }
     private void checkCombat(Fighter attacker, Fighter defender) {
         // 1. Is the attacker actually attacking?
@@ -92,7 +100,11 @@ public class Game implements Runnable {
             attacker.attackActive = false;
         }
     }
-
+    public void startNewMatch(String playerCharacterName, String enemyCharacterName) {
+        player = new Player(150, 425, 68, 135, playerCharacterName, this);
+        enemy = new Enemy(600, 425, 68, 145, enemyCharacterName, player, this);
+        GameState.state = GameState.PLAYING;
+    }
     public void update() {
         switch (GameState.state) {
             case MENU:
@@ -190,6 +202,15 @@ public class Game implements Runnable {
             case GAME_OVER:
                 g.setColor(java.awt.Color.RED);
                 g.drawString("KNOCKOUT!", 350, 300);
+                break;
+            case CHARACTER_SELECT:
+                if (charSelectImg != null) {
+                    g.drawImage(charSelectImg, 0, 0, GAME_WIDTH, GAME_HEIGHT, null);
+                }
+                // Draw the cursor/portraits on top
+                if (characterSelect != null) {
+                    characterSelect.draw(g);
+                }
                 break;
         }
     }
@@ -292,4 +313,5 @@ public class Game implements Runnable {
     public Player getPlayer() {
         return player;
     }
+
 }

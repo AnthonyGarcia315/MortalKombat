@@ -1,10 +1,11 @@
 package inputs;
 
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import main.GamePanel;
 import main.GameState;
-import main.InputEvent; // Make sure to import this!
+import main.InputEvent;
+
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 
 public class KeyboardInputs implements KeyListener {
 
@@ -15,80 +16,81 @@ public class KeyboardInputs implements KeyListener {
     }
 
     @Override
-    public void keyTyped(KeyEvent e) { }
-
-    @Override
     public void keyReleased(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_A:
-                gamePanel.getGame().getPlayer().setLeft(false);
-                break;
-            case KeyEvent.VK_D:
-                gamePanel.getGame().getPlayer().setRight(false);
-                break;
-            case KeyEvent.VK_W:
-                gamePanel.getGame().getPlayer().setUp(false);
-                break;
-            case KeyEvent.VK_S:
-                gamePanel.getGame().getPlayer().setDown(false);
-                break;
-            case KeyEvent.VK_SHIFT:
-                // If you hold shift to block, release it to stop blocking
-                gamePanel.getGame().getPlayer().setBlocking(false);
-                break;
-            case KeyEvent.VK_ENTER:
-                if (GameState.state == GameState.MENU) {
-                    GameState.state = GameState.PLAYING;
-                } else if (GameState.state == GameState.GAME_OVER) {
-// Later, you will also need to reset health to 100 here!
-                    GameState.state = GameState.MENU;
-                }
-                break;
+        // Logic for releasing movement keys
+        if (GameState.state == GameState.PLAYING) {
+            switch (e.getKeyCode()) {
+                case KeyEvent.VK_A: gamePanel.getGame().getPlayer().setLeft(false); break;
+                case KeyEvent.VK_D: gamePanel.getGame().getPlayer().setRight(false); break;
+                case KeyEvent.VK_W: gamePanel.getGame().getPlayer().setUp(false); break;
+                case KeyEvent.VK_S: gamePanel.getGame().getPlayer().setDown(false); break;
+                case KeyEvent.VK_SHIFT: gamePanel.getGame().getPlayer().setBlocking(false); break;
+            }
         }
     }
 
     @Override
+    public void keyTyped(KeyEvent e) {
+
+    }
+
+    @Override
     public void keyPressed(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_A:
-                gamePanel.getGame().getPlayer().setLeft(true);
-                // NEW: Log 'A' to the combo buffer
-                gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.LEFT);
+        switch (GameState.state) {
+            case MENU:
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    GameState.state = GameState.CHARACTER_SELECT;
+                }
                 break;
 
-            case KeyEvent.VK_D:
-                gamePanel.getGame().getPlayer().setRight(true);
-                // NEW: Log 'D' to the combo buffer
-                gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.RIGHT);
+            case CHARACTER_SELECT:
+                // Forward input to your new CharacterSelect class
+                gamePanel.getGame().getCharacterSelect().keyPressed(e);
                 break;
 
-            case KeyEvent.VK_W:
-                gamePanel.getGame().getPlayer().setUp(true);
-                // NEW: Log 'W' to the combo buffer
-                gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.UP);
+            case PLAYING:
+                // Your existing combat input logic goes here
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_A:
+                        gamePanel.getGame().getPlayer().setLeft(true);
+                        gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.LEFT);
+                        break;
+                    case KeyEvent.VK_D:
+                        gamePanel.getGame().getPlayer().setRight(true);
+                        gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.RIGHT);
+                        break;
+                    case KeyEvent.VK_W:
+                        // Jump
+                        gamePanel.getGame().getPlayer().setUp(true);
+                        break;
+                    case KeyEvent.VK_S:
+                        // Crouch (also feeds the DOWN input needed for ICE_BALL's
+                        // DOWN, forward, PUNCH combo)
+                        gamePanel.getGame().getPlayer().setDown(true);
+                        gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.DOWN);
+                        break;
+                    case KeyEvent.VK_SHIFT:
+                        gamePanel.getGame().getPlayer().setBlocking(true);
+                        break;
+                    case KeyEvent.VK_SPACE:
+                        // Punch
+                        gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.PUNCH);
+                        break;
+                    case KeyEvent.VK_K:
+                        // Kick
+                        gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.KICK);
+                        break;
+                    case KeyEvent.VK_TAB:
+                        // Throw
+                        gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.THROW);
+                        break;
+                }
                 break;
 
-            case KeyEvent.VK_S:
-                gamePanel.getGame().getPlayer().setDown(true);
-                // NEW: Log 'S' to the combo buffer
-                gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.DOWN);
-                break;
-
-            case KeyEvent.VK_SHIFT:
-                gamePanel.getGame().getPlayer().setBlocking(true);
-                break;
-
-            // --- THE ATTACKS ---
-            case KeyEvent.VK_SPACE:
-                gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.PUNCH);
-                break;
-
-            case KeyEvent.VK_ENTER:
-                gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.KICK);
-                break;
-
-            case KeyEvent.VK_TAB:
-                gamePanel.getGame().getPlayer().registerInput(InputEvent.Button.THROW);
+            case GAME_OVER:
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    GameState.state = GameState.MENU;
+                }
                 break;
         }
     }
