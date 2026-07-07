@@ -2,7 +2,7 @@ package main;
 
 public class InputEvent {
     public enum Button {
-        UP, DOWN, LEFT, RIGHT, FORWARD, BACK, PUNCH, KICK, NONE
+        UP, DOWN, LEFT, RIGHT, FORWARD, BACK, PUNCH, KICK, BLOCK, THROW, NONE
     }
 
     public Button button;

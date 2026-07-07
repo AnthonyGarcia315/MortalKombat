@@ -1,50 +1,36 @@
 package main;
 
-import java.awt.Graphics;
-import java.awt.image.BufferedImage;
-import java.util.HashMap;
-
-import util.LoadSave;
 import java.util.LinkedList;
 
-public class Player extends Entity{
-    // Movement flags from earlier
-    private boolean up, down, left, right, jump,attacking;
-    // --- Sprite Management ---
-    private int aniTick, aniIndex, aniSpeed = 20; // Lower number means faster animation
-    //private int playerAction = 0; // 0 = IDLE, 1 = RUNNING, etc.
-    //private String currentState = "IDLE";
-    private HashMap<String, BufferedImage[]> animations = new HashMap<>();
+public class Player extends Fighter {
+
+    // Movement and action flags
+    private boolean up, down, left, right, jump, blocking;
+
     private LinkedList<InputEvent> inputBuffer = new LinkedList<>();
-    private long currentFrame = 0; // Tracks game time for the buffer
-    private final long BUFFER_WINDOW = 15; // How many frames an input stays "alive"
-    // Add this near your attacking boolean
+    private long currentFrame = 0;
+    private final long BUFFER_WINDOW = 40;
     private int comboStep = 0;
+    private Game game;
 
-
-    public Player(float x, float y,int width, int height) {
-        super(x,y,width,height);
-        loadAnimations();
+    public Player(float x, float y, int width, int height, String characterName, Game game) {
+        super(x, y, width, height, characterName);
+        this.game=game;
     }
+
     public void registerInput(InputEvent.Button button) {
-        // Add the new button press to the end of the queue
         inputBuffer.addLast(new InputEvent(button, currentFrame));
     }
+    private boolean checkCombo(InputEvent.Button b1, InputEvent.Button b2, InputEvent.Button b3) {
+        if (inputBuffer.size() < 3) return false;
 
-    private void loadAnimations() {
-        // If you have 9 idle frames named subzero_idle_0.png through subzero_idle_9.png
-        animations.put("IDLE", LoadSave.GetSpriteSequence("/subzero/idle/subzero_idle_", 9));
+        // Read the LinkedList from newest (last) to oldest
+        java.util.Iterator<InputEvent> it = inputBuffer.descendingIterator();
+        InputEvent third = it.next();
+        InputEvent second = it.next();
+        InputEvent first = it.next();
 
-        // If you download his punch and name them subzero_punch_0.png to subzero_punch_4.png
-        animations.put("ATTACK_PUNCH", LoadSave.GetSpriteSequence("/subzero/attackPunch/subzero_punch_", 9));
-        animations.put("CROUCH", LoadSave.GetSpriteSequence("/subzero/crouch/subzero_crouch_", 3));
-        animations.put("JUMP", LoadSave.GetSpriteSequence("/subzero/jump/subzero_jump_", 3));
-        animations.put("JUMP_FLIP", LoadSave.GetSpriteSequence("/subzero/jump/subzero_jumpflip_", 8));
-
-        // If you download his walk...
-        animations.put("WALK", LoadSave.GetSpriteSequence("/subzero/walk/subzero_walk_", 9));
-        animations.put("ATTACK_PUNCH_2", animations.get("ATTACK_PUNCH"));
-        animations.put("ATTACK_PUNCH_3", animations.get("ATTACK_PUNCH"));
+        return first.button == b1 && second.button == b2 && third.button == b3;
     }
 
     public void update() {
@@ -52,29 +38,80 @@ public class Player extends Entity{
         cleanBuffer();
         processBuffer();
 
-        updatePosition();
-        updateCollisionBoxes(); // NEW: Move the boxes with the player!
+        if (isHit) {
+            // Keep ticking whichever reaction animation takeDamage()/
+            // getThrown() set (HIT_HIGH/HIT_LOW/HIT_CROUCH/THROWN) instead of
+            // letting setAnimation() immediately overwrite it with whatever
+            // the movement keys say — it used to just freeze on the pose the
+            // character happened to be in when hit, since nothing ticked the
+            // animation or applied the pushback slide during stun.
+            updateAnimationTick();
+            updateHitStun();
+            return;
+        }
+
+        // Animation state is decided and advanced FIRST, then physics and
+        // hitboxes are derived from it — this fixes the old ordering, where
+        // updatePosition() read a stale aniIndex from before setAnimation()
+        // and updateAnimationTick() had run for the current tick.
         setAnimation();
         updateAnimationTick();
+        updatePosition();
+        updateCollisionBoxes();
+        updateAttackHitbox();
     }
+
     private void cleanBuffer() {
-        // Remove inputs that are older than our 15-frame window
         while (!inputBuffer.isEmpty() && (currentFrame - inputBuffer.getFirst().frame > BUFFER_WINDOW)) {
             inputBuffer.removeFirst();
         }
     }
+
     private void processBuffer() {
         if (inputBuffer.isEmpty()) return;
 
-        // Only allow a new attack if we aren't currently locked in an attack animation
-        // OR if we are in the recovery frames of a previous attack (Combo linking!)
         if (!attacking || (currentState.equals("ATTACK_PUNCH") && aniIndex >= 6)) {
+            InputEvent.Button forward = facingRight ? InputEvent.Button.RIGHT : InputEvent.Button.LEFT;
+            InputEvent.Button backward = facingRight ? InputEvent.Button.LEFT : InputEvent.Button.RIGHT;
+            // --- SPECIAL MOVES (Combos must be checked first!) ---
+            if (checkCombo(backward, forward, InputEvent.Button.KICK)) {
+                attacking = true;
+                currentAttack = "SLIDE";
+                inputBuffer.clear(); // Clear the buffer so we don't accidentally kick right after
+                return;
+            }
+            if (checkCombo(InputEvent.Button.DOWN, forward, InputEvent.Button.PUNCH)) {
+                attacking = true;
+                currentAttack = "ICE_BALL";
+                inputBuffer.clear();
+                return;
+            }
 
+            // --- NORMAL MOVES ---
             InputEvent oldestValidInput = inputBuffer.getFirst();
 
+            // PUNCH LOGIC
             if (oldestValidInput.button == InputEvent.Button.PUNCH) {
                 attacking = true;
-                inputBuffer.removeFirst(); // Consume the input so it doesn't trigger twice
+                if (inAir) currentAttack = "JUMP_PUNCH";
+                else if (down) currentAttack = "UPPERCUT";
+                else currentAttack = "ATTACK_PUNCH";
+                inputBuffer.removeFirst();
+            }
+            // KICK LOGIC
+            else if (oldestValidInput.button == InputEvent.Button.KICK) {
+                attacking = true;
+                if (inAir) currentAttack = "JUMP_KICK";
+                else if (down && (left || right)) currentAttack = "SWEEP";
+                else if (down) currentAttack = "CROUCH_KICK";
+                else currentAttack = "ATTACK_KICK";
+                inputBuffer.removeFirst();
+            }
+            // THROW LOGIC
+            else if (oldestValidInput.button == InputEvent.Button.THROW) {
+                attacking = true;
+                currentAttack = "THROW";
+                inputBuffer.removeFirst();
             }
         }
     }
@@ -82,18 +119,22 @@ public class Player extends Entity{
     private void setAnimation() {
         String startAnim = currentState;
 
-        // 1. HIGHEST PRIORITY: The Attack Lock
+        // 1. HIGHEST PRIORITY: Attacks
         if (attacking) {
-            currentState = "ATTACK_PUNCH";
+            currentState = currentAttack;
         }
-        // 2. NORMAL MOVEMENT (Only happens if we aren't attacking)
+        // 2. BLOCKING
+        else if (blocking && !inAir) {
+            if (down) {
+                currentState = "CROUCH_BLOCK";
+            } else {
+                currentState = "BLOCK";
+            }
+        }
+        // 3. NORMAL MOVEMENT
         else {
             if (inAir) {
-                if (horizontalAirSpeed != 0&& jumpImpulseApplied) {
-                    currentState = "JUMP_FLIP";
-                } else {
-                    currentState = "JUMP";
-                }
+                currentState = (horizontalAirSpeed != 0) ? "JUMP_FLIP" : "JUMP";
             } else if (down) {
                 currentState = "CROUCH";
             } else if (left || right) {
@@ -103,150 +144,93 @@ public class Player extends Entity{
             }
         }
 
-        // 3. Reset frame counter ONLY if the state actually changed
         if (!startAnim.equals(currentState)) {
             aniIndex = 0;
             aniTick = 0;
         }
     }
 
-    private void updateAnimationTick() {
-        aniTick++;
-        if (aniTick >= aniSpeed) {
-            aniTick = 0;
-            aniIndex++;
-
-            // --- 1. HITBOX PULSE LOGIC ---
-            // This needs to happen EVERY time the frame changes,
-            // so we put it OUTSIDE the "end of animation" check below.
-            if (currentState.equals("ATTACK_PUNCH")) {
-                if (aniIndex == 2 || aniIndex == 5 || aniIndex == 8) {
-                    attackActive = true;
-                } else {
-                    attackActive = false;
-                }
-            }
-
-            int currentAnimLength = animations.get(currentState).length;
-
-            // --- 2. END OF ANIMATION LOGIC ---
-            // What should the game do when we run out of frames?
-            if (aniIndex >= currentAnimLength) {
-
-                if (currentState.equals("CROUCH") || currentState.equals("JUMP")) {
-                    aniIndex = currentAnimLength - 1; // Freeze on the last frame
-                }
-                else if (currentState.equals("ATTACK_PUNCH")) {
-                    // THE FIX: Reset everything back to normal!
-                    attacking = false;
-                    currentState = "IDLE";
-                    aniIndex = 0; // Reset the clock so we don't crash!
-                    attackActive = false; // Safety catch
-                }
-                else {
-                    aniIndex = 0; // Default loop for things like IDLE and WALK
-                }
-            }
-        }
-    }
-
     private void updatePosition() {
-        if (isHit) {
-            stunTick++;
-            if (stunTick >= stunDuration) {
-                isHit = false; // Break out of stun!
-            }
-            // EXIT EARLY! Do not process normal animations or movement.
-            return;
-        }
-        if (down && !inAir) {
+        // Prevent movement if ducking or blocking, unless in the air
+        if ((down || blocking) && !inAir) {
             return;
         }
 
-        // 1. INTENTION: The player wants to jump!
-        if (up && !inAir) {
+        if (up && !inAir &&!attacking) {
             inAir = true;
-            jumpImpulseApplied = false; // Reset our takeoff flag
-            // DO NOT apply airSpeed here anymore! We just prepare for takeoff.
+            // Apply the jump impulse the instant takeoff happens instead of
+            // waiting for aniIndex to reach a "takeoff frame" on the slow
+            // shared animation clock. That old gating meant the character
+            // hung motionless in the air for ~40-60 ticks (0.2-0.3s) after
+            // pressing jump, since gravity/airSpeed never engaged until the
+            // wind-up animation had ticked forward — it looked like the
+            // jump was broken/laggy. Now the character actually leaves the
+            // ground the moment the key is pressed, and the animation just
+            // plays out over the arc like it should.
+            airSpeed = jumpSpeed;
             if (left) {
-                horizontalAirSpeed = (float) (-speed*2.); // Forward/Backward Jump (Left)
+                horizontalAirSpeed = (float) (-speed * 2.);
             } else if (right) {
-                horizontalAirSpeed = (float) (speed*2.);  // Forward/Backward Jump (Right)
+                horizontalAirSpeed = (float) (speed * 2.);
             } else {
-                horizontalAirSpeed = 0;      // Neutral Jump (Straight Up)
+                horizontalAirSpeed = 0;
             }
         }
 
-        if (!inAir && !currentState.equals("ATTACK_PUNCH")) {
+// --- GROUND MOVEMENT & SLIDE PHYSICS ---
+        if (attacking && currentAttack.equals("SLIDE") && attackActive) {
+            // Physically launch the player forward during the active frames of the slide
+            if (facingRight) x += speed * 10.5f;
+            else x -= speed * 10.5f;
+        }
+        else if (attacking && currentAttack.equals("ICE_BALL")) {
+            // Trigger the projectile precisely on its active frame (frame index 3)
+            // We use static access or a game reference depending on how your engine passes things
+            if (aniIndex == 2 && aniTick == 1) {
+                // Safe default height check (chest level roughly y - 100)
+                // Assuming you can access Game through a reference, or pass it via main setup.
+                // If you don't have static access, adjust this line to your project structure.
+                // example: game.spawnProjectile(...)
+                game.spawnProjectile(x,y-90,facingRight,characterName);
+            }
+        }
+        else if (!inAir && !attacking) {
             if (left) x -= speed;
             if (right) x += speed;
         }
 
-        // 2. THE AIRBORNE LOGIC
         if (inAir) {
+            y += airSpeed;
+            airSpeed += gravity;
+            x += horizontalAirSpeed;
 
-            if ((currentState.equals("JUMP")||currentState.equals("JUMP_FLIP")) && !jumpImpulseApplied && aniIndex >= jumpTakeoffFrame) {
-                airSpeed = jumpSpeed;
-                jumpImpulseApplied = true;
-            }
+            if (y >= floorY) {
+                y = floorY;
+                inAir = false;
+                airSpeed = 0f;
+                horizontalAirSpeed = 0f;
 
-            if (jumpImpulseApplied) {
-                y += airSpeed;
-                airSpeed += gravity;
-
-                // NEW: Apply the locked-in horizontal speed every frame
-                x += horizontalAirSpeed;
-
-                // Floor Collision
-                if (y >= floorY) {
-                    y = floorY;
-                    inAir = false;
-                    airSpeed = 0f;
-                    horizontalAirSpeed = 0f; // Reset horizontal momentum on landing!
+                // JUMP_KICK and JUMP_PUNCH now hold their last frame while
+                // airborne (see Fighter.HOLD_LAST_FRAME_STATES) instead of
+                // resetting to IDLE mid-air, so nothing else clears
+                // "attacking" for them anymore — landing has to do it.
+                if (attacking && (currentAttack.equals("JUMP_KICK") || currentAttack.equals("JUMP_PUNCH"))) {
+                    attacking = false;
+                    currentAttack = "";
+                    attackActive = false;
                 }
             }
-
-
         }
-        // --- THE SCREEN BORDERS ---
-        // 1. Define a static body width (adjust this until he stops perfectly at the edge)
         enforceScreenBorders();
     }
 
-    public void draw(Graphics g) {
-        BufferedImage[] currentAnimArray = animations.get(currentState);
-
-        if (currentAnimArray != null && currentAnimArray[aniIndex] != null) {
-            BufferedImage currentFrame = currentAnimArray[aniIndex];
-
-            int drawWidth = (int) (currentFrame.getWidth() * scale);
-            int drawHeight = (int) (currentFrame.getHeight() * scale);
-
-            int drawX = (int) (x - (drawWidth / 2));
-            int drawY = (int) (y - drawHeight);
-
-            // --- THE FLIP MATH ---
-            // If facing right, draw normally. If facing left, shift the start point to the right edge and draw backward!
-            int flipX = facingRight ? 0 : drawWidth;
-            int flipW = facingRight ? 1 : -1;
-
-            g.drawImage(currentFrame, drawX + flipX, drawY, drawWidth * flipW, drawHeight, null);
-        }
-    }
-
-    // ... Keep your getters and setters down here ...
+    // Setters
     public void setLeft(boolean left) { this.left = left; }
     public void setRight(boolean right) { this.right = right; }
     public void setUp(boolean up) { this.up = up; }
     public void setDown(boolean down) { this.down = down; }
     public void setJump(boolean jump) { this.jump = jump; }
-    public void setCurrentState(String state){
-        currentState=state;
-    }
-
-    public void setAttacking(boolean b) {
-        attacking=b;
-    }
+    public void setCurrentState(String state){ currentState=state; }
+    public void setAttacking(boolean b) { attacking = b; }
+    public void setBlocking(boolean b) { blocking = b; }
 }
-
-

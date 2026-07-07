@@ -22,13 +22,17 @@ public class Game implements Runnable {
     // The final window dimensions are calculated automatically
     public final static int GAME_WIDTH = TILES_SIZE * TILES_IN_WIDTH;
     public final static int GAME_HEIGHT = TILES_SIZE * TILES_IN_HEIGHT;
+    private Projectile activeProjectile = null;
 
 
     private Player player;
     private Enemy enemy;
     public Game() {
-        player = new Player(150,425,68,135);
-        enemy = new Enemy(600, 425, 68, 145);
+        player = new Player(150, 425, 68, 135, "subzero",this);
+        // Enemy now takes a characterName the same way Player does — swap
+        // "subzero" for any other character folder under /res once you have
+        // assets for one (e.g. new Enemy(600, 425, 68, 145, "scorpion")).
+        enemy = new Enemy(600, 425, 68, 145, "subzero",player,this);
         // Load your background image here!
         backgroundImg = LoadSave.GetSprite("/bg.png");
         titleScreenImg = LoadSave.GetSprite("/title.png");
@@ -50,6 +54,44 @@ public class Game implements Runnable {
         gameThread = new Thread(this);
         gameThread.start();
     }
+    private void checkCombat(Fighter attacker, Fighter defender) {
+        // 1. Is the attacker actually attacking?
+        if (!attacker.attackActive || attacker.isHit) return;
+
+        // 2. Is the defender already stunned? (Prevents multi-hit glitches from one punch)
+        if (defender.isHit) return;
+
+        // 3. Did the hitboxes intersect?
+        if (attacker.hitbox.intersects(defender.hurtbox)) {
+
+            boolean knockedRight = attacker.facingRight;
+            String moveName = attacker.currentAttack;
+            Move moveData = attacker.moveSet.get(moveName);
+
+            // Special Case: Throws
+            if (moveName.equals("THROW")) {
+                defender.getThrown(knockedRight);
+                return;
+            }
+
+            // Special Case: Projectiles (if your ICE_BALL is physical and not spawned)
+            if (moveName.equals("ICE_BALL")) {
+                defender.getFrozen();
+                return;
+            }
+
+            // Normal Strikes
+            if (moveData != null) {
+                defender.takeDamage(moveData.damage, knockedRight, moveData.hitLevel);
+            } else {
+                // Fallback just in case
+                defender.takeDamage(10, knockedRight, Move.HitLevel.HIGH);
+            }
+
+            // Turn off the attacker's active hitbox so they don't hit 3 times in one swing
+            attacker.attackActive = false;
+        }
+    }
 
     public void update() {
         switch (GameState.state) {
@@ -61,20 +103,43 @@ public class Game implements Runnable {
                 // --- YOUR EXISTING COMBAT LOGIC GOES HERE ---
                 player.update();
                 enemy.update();
-
+                checkCombat(player, enemy);
+                checkCombat(enemy, player); // Do it both ways!
                 // Referee Logic (Facing Direction)
-                if (player.getX() < enemy.getX()) {
-                    player.setFacingRight(true);
-                    enemy.setFacingRight(false);
-                } else {
-                    player.setFacingRight(false);
-                    enemy.setFacingRight(true);
+                if (!player.getCurrentState().equals("THROW") && !enemy.getCurrentState().equals("THROWN")) {
+                    if (player.getX() < enemy.getX()) {
+                        player.setFacingRight(true);
+                        enemy.setFacingRight(false);
+                    } else {
+                        player.setFacingRight(false);
+                        enemy.setFacingRight(true);
+                    }
+                }
+                // --- NEW: Update Projectile ---
+                if (activeProjectile != null) {
+                    activeProjectile.update();
+                    if (!activeProjectile.isActive()) {
+                        activeProjectile = null;
+                    } else if (activeProjectile.getHitbox().intersects(enemy.getHurtbox())) {
+                        // Projectile hits! Freeze them
+                        enemy.getFrozen();
+                        activeProjectile = null;
+                    }
                 }
 
                 // Collision & Damage Logic
                 if (player.attackActive) {
                     if (player.hitbox.intersects(enemy.getHurtbox())) {
-                        enemy.takeDamage(5, player.facingRight);
+                        if (player.currentAttack.equals("THROW")) {
+                            enemy.getThrown(player.facingRight);
+                        }else if (player.currentAttack.equals("ICE_BALL")) {
+
+                        }
+                        else {
+                            Move usedMove = player.moveSet.get(player.currentAttack);
+                            Move.HitLevel level = (usedMove != null) ? usedMove.hitLevel : Move.HitLevel.HIGH;
+                            enemy.takeDamage(5, player.facingRight, level);
+                        }
                         player.attackActive = false;
                     }
                 }
@@ -116,6 +181,9 @@ public class Game implements Runnable {
                 // Draw characters and UI on top of the stage
                 player.draw(g);
                 enemy.draw(g);
+                if (activeProjectile != null) {
+                    activeProjectile.draw(g);
+                }
                 drawUI(g); // Your health bars method
                 break;
 
@@ -124,6 +192,9 @@ public class Game implements Runnable {
                 g.drawString("KNOCKOUT!", 350, 300);
                 break;
         }
+    }
+    public void spawnProjectile(float x, float y, boolean facingRight, String characterName) {
+        this.activeProjectile = new Projectile(x, y, facingRight, characterName);
     }
     // Paste this anywhere inside your Game class (usually below render)
     private void drawUI(Graphics g) {

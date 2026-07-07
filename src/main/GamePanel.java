@@ -15,6 +15,7 @@ public class GamePanel extends JPanel {
 
         setPreferredSize(new Dimension(Game.GAME_WIDTH, Game.GAME_HEIGHT));
         setBackground(Color.BLACK);
+        setFocusTraversalKeysEnabled(false);
 
         addKeyListener(new KeyboardInputs(this));
         setFocusable(true);

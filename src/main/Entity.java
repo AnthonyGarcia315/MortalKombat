@@ -13,12 +13,10 @@ public abstract class Entity {
     protected int speed = 1;
     protected int floorY = 425;
     protected float airSpeed = 0f;
-    protected float gravity = 0.1f;
-    protected float jumpSpeed = -6.5f;
+    protected float gravity = 0.05f;
+    protected float jumpSpeed = -4.5f;
 
     protected boolean inAir = false;
-    protected boolean jumpImpulseApplied = false;
-    protected int jumpTakeoffFrame = 2;
     protected float horizontalAirSpeed = 0f;
 
     protected boolean facingRight = true;
@@ -83,32 +81,44 @@ public abstract class Entity {
         this.height = height;
         hurtbox = new Rectangle(0, 0, 60, 155);
 
-        // Let's say his punch reaches 45px outward, and is 30px tall
+        // Default hitbox before any move-specific sizing kicks in (see
+        // Fighter.updateAttackHitbox(), which overrides this per-attack).
         hitbox = new Rectangle(0, 0, 45, 30);
     }
-//    public void takeDamage(int amount) {
-//        currentHealth -= amount;
-//        if (currentHealth <= 0) {
-//            currentHealth = 0;
-//            currentState = "DEAD";
-//        } else {
-//            currentState = "HIT_STUN"; // Forces them to flinch!
-//        }
-//    }
+
     protected void updateCollisionBoxes() {
-        // Sync Hurtbox (Body)
+        // 1. Set the dimensions dynamically based on state BEFORE positioning
+        // (Include CROUCH_KICK or SWEEP here if you want them to stay low during attacks)
+        if (currentState.equals("CROUCH")|| currentState.equals("SLIDE")) {
+            hurtbox.height = 77; // roughly half of your original 155
+        } else if (currentState.equals("CROUCH_BLOCK")) {
+            hurtbox.height=120;
+        } else {
+            hurtbox.height = 155; // Reset to standing height
+        }
+
+        // 2. Sync Hurtbox (Body) position
         hurtbox.x = (int) (x - (hurtbox.width / 2));
+        // Because Y is anchored to the bottom (y - height), shrinking the height
+        // automatically pulls the top of the box downward!
         hurtbox.y = (int) (y - hurtbox.height);
 
-        // Sync Hitbox (Fist)
-        hitbox.y = (int) (y - (hurtbox.height ));
+        // 3. Sync Hitbox (Attack Box)
+        hitbox.y = (int) (y - hurtbox.height);
 
+        // Adjust the attack hitbox downward if they punch while crouching
+        if (currentState.equals("CROUCH")) {
+            hitbox.y += hitbox.height / 2;
+        }
+
+        // 4. Sync Hitbox X orientation
         if (facingRight) {
             hitbox.x = hurtbox.x + hurtbox.width;
         } else {
             hitbox.x = hurtbox.x - hitbox.width;
         }
     }
+    public String getCurrentState() { return currentState; }
     public float getX() { return x; }
     public void setFacingRight(boolean facingRight) { this.facingRight = facingRight; }
     public Rectangle getHurtbox() { return hurtbox; }
