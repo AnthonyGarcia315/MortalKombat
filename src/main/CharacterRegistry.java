@@ -65,10 +65,10 @@ public class CharacterRegistry {
         f.put("JUMP_FLIP", 8);
         f.put("BLOCK", 3);
         f.put("ATTACK_PUNCH", 9);
-        f.put("ATTACK_KICK", 7);
+        f.put("ATTACK_KICK", 8);
         f.put("UPPERCUT", 5);
         f.put("JUMP_PUNCH", 3);
-        f.put("JUMP_KICK", 4);
+        f.put("JUMP_KICK", 3);
         f.put("CROUCH_KICK", 3);
         f.put("SWEEP", 6);
         f.put("HIT_HIGH", 3);
@@ -87,7 +87,7 @@ public class CharacterRegistry {
         m.put("JUMP_PUNCH", new Move(3, 0, 2, 0, 90, 45, 25, Move.HitLevel.HIGH, 6));
         m.put("JUMP_KICK", new Move(5, 1, 3, 10, 40, 60, 30, Move.HitLevel.HIGH, 9));
         m.put("CROUCH_KICK", new Move(3, 0, 2, 0, 20, 40, 20, Move.HitLevel.LOW, 4));
-        m.put("SWEEP", new Move(6, 2, 4, 15, 10, 70, 20, Move.HitLevel.LOW, 7));
+        m.put("SWEEP", new Move(6, 2, 4, 15, 10, 70, 20, Move.HitLevel.LOW, 3));
         m.put("THROW", new Move(6, 1, 3, -10, 120, 40, 60, Move.HitLevel.HIGH, 0));
         return m;
     }

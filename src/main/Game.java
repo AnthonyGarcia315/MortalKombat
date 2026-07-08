@@ -11,7 +11,7 @@ public class Game implements Runnable {
     private GamePanel gamePanel;
     private Thread gameThread;
     private final int FPS_SET = 120;
-    private final int UPS_SET = 200;
+    private final int UPS_SET = 150;
     private BufferedImage titleScreenImg;
     private BufferedImage backgroundImg;
     public final static int TILES_DEFAULT_SIZE = 32;
@@ -45,6 +45,8 @@ public class Game implements Runnable {
 
         // Create the window right here in the Game class
         javax.swing.JFrame window = new javax.swing.JFrame();
+        window.setTitle("Mortal Kombat"); // Sets the text at the top of the window
+        window.setIconImage(util.LoadSave.GetSprite("/logo.jpg")); // Sets the taskbar/window logo
         window.setDefaultCloseOperation(javax.swing.JFrame.EXIT_ON_CLOSE);
         window.add(gamePanel);
         window.pack();
