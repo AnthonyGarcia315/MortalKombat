@@ -1,6 +1,7 @@
 package main;
 
 import java.util.LinkedList;
+import util.SoundManager;
 
 public class Player extends Fighter {
 
@@ -98,6 +99,7 @@ public class Player extends Fighter {
                 if (checkSequence(resolveSequence(special.sequence))) {
                     attacking = true;
                     currentAttack = special.moveName;
+                    playAttackSound(currentAttack);
                     inputBuffer.clear(); // Clear the buffer so we don't accidentally re-trigger it
                     return;
                 }
@@ -112,6 +114,7 @@ public class Player extends Fighter {
                 if (inAir) currentAttack = "JUMP_PUNCH";
                 else if (down) currentAttack = "UPPERCUT";
                 else currentAttack = "ATTACK_PUNCH";
+                playAttackSound(currentAttack);
                 inputBuffer.removeFirst();
             }
             // KICK LOGIC
@@ -121,12 +124,14 @@ public class Player extends Fighter {
                 else if (down && (left || right)) currentAttack = "SWEEP";
                 else if (down) currentAttack = "CROUCH_KICK";
                 else currentAttack = "ATTACK_KICK";
+                playAttackSound(currentAttack);
                 inputBuffer.removeFirst();
             }
             // THROW LOGIC
             else if (oldestValidInput.button == InputEvent.Button.THROW) {
                 attacking = true;
                 currentAttack = "THROW";
+                playAttackSound(currentAttack);
                 inputBuffer.removeFirst();
             }
         }
@@ -184,6 +189,7 @@ public class Player extends Fighter {
             // ground the moment the key is pressed, and the animation just
             // plays out over the arc like it should.
             airSpeed = jumpSpeed;
+            SoundManager.play(SoundManager.Sound.JUMP);
             if (left) {
                 horizontalAirSpeed = (float) (-speed * 2.);
             } else if (right) {

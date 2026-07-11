@@ -138,5 +138,6 @@ public class Enemy extends Fighter {
         currentState = currentAttack;
         aniIndex = 0;
         aniTick = 0;
+        playAttackSound(moveName);
     }
 }

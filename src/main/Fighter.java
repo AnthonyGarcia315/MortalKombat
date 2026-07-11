@@ -4,6 +4,7 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import util.LoadSave;
+import util.SoundManager;
 
 /**
  * Shared base for any character in the game, whether it's keyboard-controlled
@@ -118,6 +119,40 @@ public abstract class Fighter extends Entity {
      */
     protected void defineMoveSet() {
         moveSet.putAll(characterData.moveSet);
+    }
+
+    /**
+     * Plays the right whoosh for whatever move is starting, shared by
+     * Player.processBuffer() and Enemy.startAttack() so both control paths
+     * stay in sync instead of hand-rolling the same switch twice. Anything
+     * not explicitly listed is treated as a character-specific special
+     * (ICE_BALL, SPEAR, SLIDE, TELEPORT_PUNCH, ...) and gets the generic
+     * SPECIAL cue.
+     */
+    protected void playAttackSound(String moveName) {
+        switch (moveName) {
+            case "ATTACK_PUNCH":
+            case "JUMP_PUNCH":
+                SoundManager.play(SoundManager.Sound.PUNCH);
+                break;
+            case "UPPERCUT":
+                SoundManager.play(SoundManager.Sound.UPPERCUT);
+                break;
+            case "ATTACK_KICK":
+            case "JUMP_KICK":
+            case "CROUCH_KICK":
+                SoundManager.play(SoundManager.Sound.KICK);
+                break;
+            case "SWEEP":
+                SoundManager.play(SoundManager.Sound.SWEEP);
+                break;
+            case "THROW":
+                SoundManager.play(SoundManager.Sound.THROW);
+                break;
+            default:
+                SoundManager.play(SoundManager.Sound.SPECIAL);
+                break;
+        }
     }
 
     private boolean holdsLastFrame(String state) {
@@ -248,6 +283,7 @@ public abstract class Fighter extends Entity {
         if (isBlocking) {
             return; // Immune to freeze while blocking!
         }
+        SoundManager.play(SoundManager.Sound.FREEZE);
         isHit = true;
         stunTick = 0;
         stunDuration = 360; // 180 ticks = 1.5 seconds of being frozen solid!
@@ -326,6 +362,7 @@ public abstract class Fighter extends Entity {
 
         // --- NEW: Block Logic ---
         if (isBlocking) {
+            SoundManager.play(SoundManager.Sound.BLOCK);
             // Apply pushback and reduce damage by a lot (e.g., divided by 4)
             super.takeDamage(amount / 4, knockedRight);
 
@@ -337,6 +374,7 @@ public abstract class Fighter extends Entity {
             // RETURN EARLY so the state isn't changed to a hit animation!
             return;
         }
+        SoundManager.play(SoundManager.Sound.HIT);
         boolean wasCrouching = currentState.equals("CROUCH");
         super.takeDamage(amount, knockedRight);
         // --- NEW: Reset the stun duration just in case they were thrown previously! ---
@@ -365,6 +403,7 @@ public abstract class Fighter extends Entity {
      * staggering you.
      */
     public void getThrown(boolean knockedRight) {
+        SoundManager.play(SoundManager.Sound.HIT);
         currentHealth -= 2;
         if (currentHealth < 0) currentHealth = 0;
 

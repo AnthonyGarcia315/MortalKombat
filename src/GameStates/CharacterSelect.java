@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import main.Game;
 import main.GameState;
 import util.LoadSave;
+import util.SoundManager;
 
 public class CharacterSelect {
     private Game game;
@@ -90,14 +91,17 @@ public class CharacterSelect {
         if (key == KeyEvent.VK_A || key == KeyEvent.VK_LEFT) {
             currentSelection--;
             if (currentSelection < 0) currentSelection = 6; // Loop back to end
+            SoundManager.play(SoundManager.Sound.MENU_MOVE);
         }
         else if (key == KeyEvent.VK_D || key == KeyEvent.VK_RIGHT) {
             currentSelection++;
             if (currentSelection > 6) currentSelection = 0; // Loop back to start
+            SoundManager.play(SoundManager.Sound.MENU_MOVE);
         }
 
         // Enter to lock in
         else if (key == KeyEvent.VK_ENTER) {
+            SoundManager.play(SoundManager.Sound.MENU_CONFIRM);
             if (p1Locked == -1) {
                 // Phase 1 confirmed: lock in the player's fighter, then let
                 // them pick the opponent from the same grid.

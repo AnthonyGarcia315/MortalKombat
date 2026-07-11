@@ -1,6 +1,7 @@
 package main;
 
 import util.LoadSave;
+import util.SoundManager;
 
 import java.awt.Graphics;
 import java.awt.event.KeyListener;
@@ -46,7 +47,7 @@ public class Game implements Runnable {
         // Create the window right here in the Game class
         javax.swing.JFrame window = new javax.swing.JFrame();
         window.setTitle("Mortal Kombat"); // Sets the text at the top of the window
-        window.setIconImage(util.LoadSave.GetSprite("/logo.jpg")); // Sets the taskbar/window logo
+        window.setIconImage(util.LoadSave.GetSprite("/logo_resized.jpg")); // Sets the taskbar/window logo
         window.setDefaultCloseOperation(javax.swing.JFrame.EXIT_ON_CLOSE);
         window.add(gamePanel);
         window.pack();
@@ -134,32 +135,33 @@ public class Game implements Runnable {
                     activeProjectile.update();
                     if (!activeProjectile.isActive()) {
                         activeProjectile = null;
-                    } else if (activeProjectile.getHitbox().intersects(enemy.getHurtbox())) {
-                        // Projectile hits! Freeze them
+                    } else if (!activeProjectile.isForming() && !activeProjectile.isHitting()
+                            && activeProjectile.getHitbox().intersects(enemy.getHurtbox())) {
+                        // Projectile hits! Freeze them and let the impact
+                        // burst (frames 5-6) play out in place instead of
+                        // the projectile just vanishing on contact.
                         enemy.getFrozen();
-                        activeProjectile = null;
+                        activeProjectile.hit();
                     }
                 }
 
-                // Collision & Damage Logic
-                if (player.attackActive) {
-                    if (player.hitbox.intersects(enemy.getHurtbox())) {
-                        if (player.currentAttack.equals("THROW")) {
-                            enemy.getThrown(player.facingRight);
-                        }else if (player.currentAttack.equals("ICE_BALL")) {
-
-                        }
-                        else {
-                            Move usedMove = player.moveSet.get(player.currentAttack);
-                            Move.HitLevel level = (usedMove != null) ? usedMove.hitLevel : Move.HitLevel.HIGH;
-                            enemy.takeDamage(5, player.facingRight, level);
-                        }
-                        player.attackActive = false;
-                    }
-                }
+                // NOTE: player-vs-enemy hit resolution already happens above
+                // via checkCombat(player, enemy) / checkCombat(enemy, player),
+                // which reads each move's REAL damage and hit level out of
+                // moveSet. There used to be a second, player-only collision
+                // block here that re-checked the same hitbox/hurtbox overlap
+                // and applied a hardcoded 5 damage regardless of the move
+                // used. Because checkCombat() already flips attackActive to
+                // false the instant it lands a hit, that second block could
+                // only ever fire in the edge case where checkCombat() had
+                // skipped resolution (e.g. defender.isHit was already true)
+                // -- at which point it would apply the WRONG damage number
+                // for whatever move was actually thrown. Removed; checkCombat
+                // is now the single source of truth for combat resolution.
 
                 // CHECK FOR KNOCKOUT!
-                if (enemy.getCurrentHealth() <= 0) {
+                if (enemy.getCurrentHealth() <= 0 || player.getCurrentHealth() <= 0) {
+                    SoundManager.play(SoundManager.Sound.KO);
                     GameState.state = GameState.GAME_OVER;
                 }
                 break;

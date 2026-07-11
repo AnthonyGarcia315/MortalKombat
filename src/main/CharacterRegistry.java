@@ -82,10 +82,25 @@ public class CharacterRegistry {
     private static Map<String, Move> baseMoveSet() {
         Map<String, Move> m = new HashMap<>();
         m.put("ATTACK_PUNCH", new Move(9, 3, 5, 0, 100, 45, 25, Move.HitLevel.HIGH, 5));
-        m.put("ATTACK_KICK", new Move(7, 2, 4, 5, 60, 55, 25, Move.HitLevel.HIGH, 8));
+        // ATTACK_KICK's frameCount used to say 7 even though baseFrameCounts()
+        // (below) loads 8 real frames for it -- Move.frameCount isn't cross
+        // checked against the loaded animation length anywhere, so nothing
+        // crashed, but the active window (2-4) was timed for a swing that's
+        // one frame shorter than the one actually on screen. Bumped to match
+        // the real 8-frame clip and nudged the active window later so it
+        // lines up with the foot actually extending instead of the wind-up.
+        m.put("ATTACK_KICK", new Move(8, 3, 5, 5, 60, 55, 25, Move.HitLevel.HIGH, 8));
         m.put("UPPERCUT", new Move(5, 1, 3, -5, 150, 35, 90, Move.HitLevel.HIGH, 12));
         m.put("JUMP_PUNCH", new Move(3, 0, 2, 0, 90, 45, 25, Move.HitLevel.HIGH, 6));
-        m.put("JUMP_KICK", new Move(5, 1, 3, 10, 40, 60, 30, Move.HitLevel.HIGH, 9));
+        // JUMP_KICK is a real bug fix, not just a timing nudge: baseFrameCounts()
+        // loads only 3 frames for it (indices 0-2), but the old Move said
+        // frameCount=5 with an active window of 1-3. Since isActiveOn() is
+        // checked BEFORE the aniIndex-out-of-bounds reset in
+        // Fighter.updateAnimationTick(), aniIndex could briefly hit 3 -- one
+        // past the last real frame -- and light up attackActive for a hitbox
+        // that had no corresponding sprite on screen. Now both numbers match
+        // the actual 3-frame clip.
+        m.put("JUMP_KICK", new Move(3, 1, 2, 10, 40, 60, 30, Move.HitLevel.HIGH, 9));
         m.put("CROUCH_KICK", new Move(3, 0, 2, 0, 20, 40, 20, Move.HitLevel.LOW, 4));
         m.put("SWEEP", new Move(6, 2, 4, 15, 10, 70, 20, Move.HitLevel.LOW, 3));
         m.put("THROW", new Move(6, 1, 3, -10, 120, 40, 60, Move.HitLevel.HIGH, 0));
@@ -100,12 +115,34 @@ public class CharacterRegistry {
         Map<String, Integer> frames = baseFrameCounts();
         frames.put("ICE_BALL", 3);
         frames.put("SLIDE", 2);
+        // PROJECTILE is the flying ice ball itself (subzero_projectile_0..6),
+        // kept as a SEPARATE entry from ICE_BALL because that's Sub-Zero's
+        // own 3-frame cast animation -- the two now live in different sprite
+        // folders (/subzero/iceBall/ vs /subzero/projectile/) and are drawn
+        // by two different classes (Fighter vs Projectile). See Projectile.java.
+        frames.put("PROJECTILE", 7);
 
         Map<String, Move> moves = baseMoveSet();
         // ICE_BALL's damage is 0 here on purpose -- it freezes instead of
         // damaging directly, handled in Fighter.getFrozen()/Game's collision.
-        moves.put("ICE_BALL", new Move(6, 3, 5, 0, 105, 40, 50, Move.HitLevel.HIGH, 0));
-        moves.put("SLIDE", new Move(3, 1, 3, 0, 110, 50, 20, Move.HitLevel.LOW, 8));
+        //
+        // BUG FIX: this used to be frameCount=6 with an active window of
+        // 3-5, but ICE_BALL only has 3 real frames (see specialFolders/
+        // frameCounts above). aniIndex maxes out at 2 and then holds there
+        // (ICE_BALL is in holdLastFrameStates), so isActiveOn() was being
+        // asked "is 3, 4, or 5 in [3,5]?" against an aniIndex that could
+        // never exceed 2 -- the melee-proximity freeze hitbox was 100% dead
+        // code. Active window now sits inside the real 0-2 range and lines
+        // up with frame 2, the same frame that spawns the actual projectile
+        // (see Player.updatePosition()/Enemy.updatePhysics()).
+        moves.put("ICE_BALL", new Move(3, 1, 2, 0, 105, 40, 50, Move.HitLevel.HIGH, 0));
+        // BUG FIX: SLIDE's real animation is 2 frames (frameCounts above),
+        // not the 3 this used to claim. Active window trimmed to the one
+        // valid post-windup frame (index 1) so the low hitbox -- and the
+        // forward slide-rush physics in Player/Enemy, which are gated on
+        // attackActive -- turn on for exactly the frame that's actually a
+        // slide and not the crouch-down windup.
+        moves.put("SLIDE", new Move(2, 1, 1, 0, 110, 50, 20, Move.HitLevel.LOW, 8));
 
         List<SpecialMove> specials = Arrays.asList(
                 new SpecialMove("ICE_BALL", InputEvent.Button.DOWN, InputEvent.Button.FORWARD, InputEvent.Button.PUNCH),

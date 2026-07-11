@@ -3,6 +3,7 @@ package inputs;
 import main.GamePanel;
 import main.GameState;
 import main.InputEvent;
+import util.SoundManager;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -39,6 +40,7 @@ public class KeyboardInputs implements KeyListener {
         switch (GameState.state) {
             case MENU:
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    SoundManager.play(SoundManager.Sound.MENU_CONFIRM);
                     GameState.state = GameState.CHARACTER_SELECT;
                 }
                 break;
@@ -89,6 +91,7 @@ public class KeyboardInputs implements KeyListener {
 
             case GAME_OVER:
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    SoundManager.play(SoundManager.Sound.MENU_CONFIRM);
                     GameState.state = GameState.MENU;
                 }
                 break;
