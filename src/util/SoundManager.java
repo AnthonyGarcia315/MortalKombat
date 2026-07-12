@@ -54,7 +54,7 @@ public class SoundManager {
         FILE_PATHS.put(Sound.SWEEP, "/sounds/sweep.wav");
         FILE_PATHS.put(Sound.THROW, "/sounds/throw.wav");
         FILE_PATHS.put(Sound.SPECIAL, "/sounds/special.wav");
-        FILE_PATHS.put(Sound.HIT, "/sounds/hit.wav");
+        FILE_PATHS.put(Sound.HIT, "/sounds/hit.mp3");
         FILE_PATHS.put(Sound.BLOCK, "/sounds/block.wav");
         FILE_PATHS.put(Sound.FREEZE, "/sounds/freeze.wav");
         FILE_PATHS.put(Sound.JUMP, "/sounds/jump.wav");
