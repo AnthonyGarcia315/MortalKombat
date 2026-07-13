@@ -69,7 +69,7 @@ public class CharacterRegistry {
         f.put("UPPERCUT", 5);
         f.put("JUMP_PUNCH", 3);
         f.put("JUMP_KICK", 3);
-        f.put("CROUCH_KICK", 3);
+        f.put("CROUCH_KICK", 4);
         f.put("SWEEP", 6);
         f.put("HIT_HIGH", 3);
         f.put("HIT_LOW", 3);
