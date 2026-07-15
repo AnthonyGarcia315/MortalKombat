@@ -58,6 +58,13 @@ public class Player extends Fighter {
 
     public void update() {
         currentFrame++;
+        // --- NEW: MATCH OVER OVERRIDE ---
+        if (currentState.equals("VICTORY") || currentState.equals("DEFEATED")) {
+            updateAnimationTick();
+            updateHitStun(); // This ensures if they died mid-air, gravity still pulls them down!
+            updatePosition(); // Keep slide physics active for the final blow
+            return; // STOP running the rest of the update method!
+        }
         cleanBuffer();
         processBuffer();
 

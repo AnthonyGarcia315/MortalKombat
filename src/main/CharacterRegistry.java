@@ -76,6 +76,7 @@ public class CharacterRegistry {
         f.put("HIT_CROUCH", 3);
         f.put("THROW", 6);
         f.put("THROWN", 5);
+        f.put("VICTORY",12);
         return f;
     }
 
@@ -101,7 +102,15 @@ public class CharacterRegistry {
         // that had no corresponding sprite on screen. Now both numbers match
         // the actual 3-frame clip.
         m.put("JUMP_KICK", new Move(3, 1, 2, 10, 40, 60, 30, Move.HitLevel.HIGH, 9));
-        m.put("CROUCH_KICK", new Move(3, 0, 2, 0, 20, 40, 20, Move.HitLevel.LOW, 4));
+        // BUG FIX: baseFrameCounts() loads 4 real frames for CROUCH_KICK, but
+        // this used to say frameCount=3 with an active window of 0-2 -- so
+        // aniIndex could reach the real final frame (3, the leg fully
+        // extended) and never light up attackActive, the same class of stale
+        // frame-count bug already fixed above for ATTACK_KICK/JUMP_KICK.
+        // Now the frame count matches the real 4-frame clip and the active
+        // window (1-2) covers the leg actually extending instead of the
+        // crouch windup (0) or the retraction (3).
+        m.put("CROUCH_KICK", new Move(4, 1, 2, 0, 20, 40, 20, Move.HitLevel.LOW, 4));
         m.put("SWEEP", new Move(6, 2, 4, 15, 10, 70, 20, Move.HitLevel.LOW, 3));
         m.put("THROW", new Move(6, 1, 3, -10, 120, 40, 60, Move.HitLevel.HIGH, 0));
         return m;

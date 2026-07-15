@@ -43,7 +43,7 @@ public abstract class Fighter extends Entity {
     // Player.updatePosition(), which is what actually ends the attack, since
     // holding the last frame means "attacking" never resets on its own.
     private static final String[] HOLD_LAST_FRAME_STATES = {
-            "CROUCH", "JUMP", "JUMP_FLIP", "BLOCK", "JUMP_KICK", "JUMP_PUNCH","CROUCH_BLOCK"
+            "CROUCH", "JUMP", "JUMP_FLIP", "BLOCK", "JUMP_KICK", "JUMP_PUNCH","CROUCH_BLOCK","VICTORY","DEFEATED"
     };
 
     public Fighter(float x, float y, int width, int height, String characterName) {
@@ -86,7 +86,8 @@ public abstract class Fighter extends Entity {
         animations.put("HIT_CROUCH", loadOrDefault(basePath + "hitCrouch/" + prefix + "hitCrouch_", frames("HIT_CROUCH", 3), idleAnim));
         animations.put("THROW", loadOrDefault(basePath + "throw/" + prefix + "throw_", frames("THROW", 6), idleAnim));
         animations.put("THROWN", loadOrDefault(basePath + "thrown/" + prefix + "thrown_", frames("THROWN", 5), idleAnim));
-
+        animations.put("VICTORY", loadOrDefault(basePath + "VictoryPose/" + prefix + "victory_", frames("VICTORY", 4), idleAnim));
+        animations.put("DEFEATED", loadOrDefault(basePath + "defeated/" + prefix + "defeated_", frames("DEFEATED", 5), idleAnim));
         // Character-specific special moves (ICE_BALL, SPEAR, whatever else
         // this character's CharacterData defines) -- loaded generically so
         // adding a new special never requires touching Fighter.java again.

@@ -13,6 +13,13 @@ public class Enemy extends Fighter {
     }
 
     public void update() {
+        // --- NEW: MATCH OVER OVERRIDE ---
+        if (currentState.equals("VICTORY") || currentState.equals("DEFEATED")) {
+            updateAnimationTick();
+            updateHitStun();
+            updatePhysics();
+            return; // STOP the AI from making decisions!
+        }
         if (isHit) {
             updateAnimationTick();
             updateHitStun();
@@ -139,5 +146,9 @@ public class Enemy extends Fighter {
         aniIndex = 0;
         aniTick = 0;
         playAttackSound(moveName);
+    }
+
+    public void setCurrentState(String defeated) {
+        currentState=defeated;
     }
 }

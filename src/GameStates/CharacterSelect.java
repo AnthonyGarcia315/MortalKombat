@@ -110,7 +110,7 @@ public class CharacterSelect {
                 // Phase 2 confirmed: start the match with both picks.
                 game.startNewMatch(ROSTER[p1Locked], ROSTER[currentSelection]);
                 p1Locked = -1; // reset so the select screen works again next time
-                GameState.state = GameState.PLAYING;
+                //GameState.state = GameState.PLAYING;
             }
         }
     }
