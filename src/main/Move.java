@@ -29,7 +29,7 @@ public class Move {
      * and the sweep are LOW. If the victim happens to be crouching when hit,
      * HIT_CROUCH is used instead of either, regardless of this value.
      */
-    public enum HitLevel { HIGH, LOW }
+    public enum HitLevel { HIGH, LOW,SWEEP }
 
     /** How many frames this move's animation actually has. */
     public final int frameCount;

@@ -68,7 +68,7 @@ public class Player extends Fighter {
         cleanBuffer();
         processBuffer();
 
-        if (isHit) {
+        if (isHit||isFrozen) {
             // Keep ticking whichever reaction animation takeDamage()/
             // getThrown() set (HIT_HIGH/HIT_LOW/HIT_CROUCH/THROWN) instead of
             // letting setAnimation() immediately overwrite it with whatever

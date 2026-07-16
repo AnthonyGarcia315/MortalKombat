@@ -20,9 +20,10 @@ public class Enemy extends Fighter {
             updatePhysics();
             return; // STOP the AI from making decisions!
         }
-        if (isHit) {
+        if (isHit||isFrozen) {
             updateAnimationTick();
             updateHitStun();
+            preventIntersection();
             return;
         }
 
@@ -57,6 +58,7 @@ public class Enemy extends Fighter {
 
         enforceScreenBorders();
         updateCollisionBoxes();
+        preventIntersection();
 
         // Only update attack hitboxes if the enemy is throwing a strike
         if (attacking) {
@@ -150,5 +152,29 @@ public class Enemy extends Fighter {
 
     public void setCurrentState(String defeated) {
         currentState=defeated;
+    }
+    private void preventIntersection() {
+        if (this.hurtbox.intersects(player.getHurtbox())) {
+            // Determine who is physically on the left side[cite: 2]
+            Entity leftSide = (this.x < player.getX()) ? this : player;
+            Entity rightSide = (this.x < player.getX()) ? player : this;
+
+            // Calculate the exact pixel overlap of the two hurtboxes[cite: 2]
+            int overlap = (leftSide.getHurtbox().x + leftSide.getHurtbox().width) - rightSide.getHurtbox().x;
+
+            if (overlap > 0) {
+                // Split the difference so they push equally against each other[cite: 2]
+                leftSide.x -= overlap / 2.0f;
+                rightSide.x += overlap / 2.0f;
+
+                // Prevent the pushback from shoving characters outside the screen limits[cite: 2]
+                leftSide.enforceScreenBorders();
+                rightSide.enforceScreenBorders();
+
+                // Re-sync the invisible boxes to the newly adjusted X coordinates[cite: 2]
+                leftSide.updateCollisionBoxes();
+                rightSide.updateCollisionBoxes();
+            }
+        }
     }
 }

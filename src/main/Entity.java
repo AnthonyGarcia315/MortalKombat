@@ -31,6 +31,7 @@ public abstract class Entity {
 
     // --- HIT STUN ---
     protected boolean isHit = false;
+    protected boolean isFrozen = false; // --- NEW: Separate freeze state from hit invincibility ---
     protected int stunTick = 0;
     protected int stunDuration = 30; // 30 ticks = half a second of being paralyzed
 

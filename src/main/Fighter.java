@@ -43,7 +43,7 @@ public abstract class Fighter extends Entity {
     // Player.updatePosition(), which is what actually ends the attack, since
     // holding the last frame means "attacking" never resets on its own.
     private static final String[] HOLD_LAST_FRAME_STATES = {
-            "CROUCH", "JUMP", "JUMP_FLIP", "BLOCK", "JUMP_KICK", "JUMP_PUNCH","CROUCH_BLOCK","VICTORY","DEFEATED"
+            "CROUCH", "JUMP", "JUMP_FLIP", "BLOCK", "JUMP_KICK", "JUMP_PUNCH", "CROUCH_BLOCK", "VICTORY", "DEFEATED", "SWEPT" // --- NEW: Added SWEPT ---
     };
 
     public Fighter(float x, float y, int width, int height, String characterName) {
@@ -87,7 +87,9 @@ public abstract class Fighter extends Entity {
         animations.put("THROW", loadOrDefault(basePath + "throw/" + prefix + "throw_", frames("THROW", 6), idleAnim));
         animations.put("THROWN", loadOrDefault(basePath + "thrown/" + prefix + "thrown_", frames("THROWN", 5), idleAnim));
         animations.put("VICTORY", loadOrDefault(basePath + "VictoryPose/" + prefix + "victory_", frames("VICTORY", 4), idleAnim));
-        animations.put("DEFEATED", loadOrDefault(basePath + "defeated/" + prefix + "defeated_", frames("DEFEATED", 5), idleAnim));
+        animations.put("DEFEATED", loadOrDefault(basePath + "dizzy/" + prefix + "dizzy_", frames("DEFEATED", 5), idleAnim));
+        animations.put("SWEPT", loadOrDefault(basePath + "swept/" + prefix + "swept_", frames("SWEPT", 4), idleAnim));
+        animations.put("GETUP", loadOrDefault(basePath + "getup/" + prefix + "getup_", frames("GETUP", 3), idleAnim));
         // Character-specific special moves (ICE_BALL, SPEAR, whatever else
         // this character's CharacterData defines) -- loaded generically so
         // adding a new special never requires touching Fighter.java again.
@@ -211,7 +213,13 @@ public abstract class Fighter extends Entity {
         }
 
         if (aniIndex >= currentAnimLength) {
-            if (holdsLastFrame(currentState)) {
+            if (currentState.equals("GETUP")) {
+                isHit = false;
+                isFrozen = false;
+                currentState = "IDLE";
+                aniIndex = 0;
+            }
+            else if (holdsLastFrame(currentState)) {
                 aniIndex = currentAnimLength - 1;
             } else if (attacking) {
                 attacking = false;
@@ -276,25 +284,27 @@ public abstract class Fighter extends Entity {
         drawHitboxes(g); // Hitboxes will still draw in the correct, non-flipped locations!
     }
     public void getFrozen() {
-        if (isHit && stunDuration == 360) {
-            return;
+        if (isFrozen) {
+            return; // Already frozen!
         }
-        // --- NEW: Check if blocking to prevent being frozen ---
+
         boolean isBlocking = currentState.equals("BLOCK") || currentState.equals("CROUCH_BLOCK");
         if (isBlocking) {
             return; // Immune to freeze while blocking!
         }
         SoundManager.play(SoundManager.Sound.FREEZE);
-        isHit = true;
+
+        isFrozen = true;
+        isHit = false; // --- MAGIC FIX: Let them get hit by tricking the game engine! ---
+
         stunTick = 0;
-        stunDuration = 360; // 180 ticks = 1.5 seconds of being frozen solid!
+        stunDuration = 360;
 
         attackActive = false;
         attacking = false;
         currentAttack = "";
-        pushBackSpeed = 0; // Frozen enemies don't slide backward
+        pushBackSpeed = 0;
 
-        // If you have a blue frozen sprite, you can change this state to "FROZEN"
         currentState = "HIT_HIGH";
         aniIndex = 0;
         aniTick = 0;
@@ -348,7 +358,18 @@ public abstract class Fighter extends Entity {
         // Add "&& !inAir" to absolutely guarantee they never wake up from a stun
         // while hovering off the ground.
         if (stunTick >= stunDuration && !inAir) {
-            isHit = false;
+            // --- NEW: Wake-up sequence ---
+            if (currentState.equals("SWEPT")) {
+                currentState = "GETUP";
+                aniIndex = 0;
+                aniTick = 0;
+                stunTick = 0;
+                stunDuration = 9999; // Set extremely high so the animation length dictates when they wake up
+            } else if (!currentState.equals("GETUP")) {
+                // Only clear the hit if they aren't currently in the middle of getting up
+                isHit = false;
+                isFrozen = false;
+            }
         }
     }
 
@@ -375,20 +396,38 @@ public abstract class Fighter extends Entity {
             // RETURN EARLY so the state isn't changed to a hit animation!
             return;
         }
+        boolean wasFrozen = isFrozen;
         SoundManager.play(SoundManager.Sound.HIT);
         boolean wasCrouching = currentState.equals("CROUCH");
         super.takeDamage(amount, knockedRight);
         // --- NEW: Reset the stun duration just in case they were thrown previously! ---
+        isFrozen=false;
         stunDuration = 30;
         attacking = false;
         currentAttack = "";
-        if (wasCrouching) {
+        if (wasFrozen) {
+            inAir = true;
+            airSpeed = -4.0f; // Pop them up into the air
+            pushBackSpeed = knockedRight ? 3.0f : -3.0f; // Throw them backward
+            currentState = "HIT_HIGH";
+            stunDuration = 60; // Give them slightly longer to hit the ground
+        }
+        else if (hitLevel == Move.HitLevel.SWEEP) {
+            inAir = true;
+            airSpeed = -3.0f; // Pop them up off their feet slightly
+            pushBackSpeed = knockedRight ? 2.5f : -2.5f; // Slide them back
+            currentState = "SWEPT";
+            stunDuration = 60; // Keep them flat on the floor for 60 ticks (1 second)
+        }
+        // Normal hit reactions
+        else if (wasCrouching) {
             currentState = "HIT_CROUCH";
         } else if (hitLevel == Move.HitLevel.LOW) {
             currentState = "HIT_LOW";
         } else {
             currentState = "HIT_HIGH";
         }
+
         aniIndex = 0;
         aniTick = 0;
     }
