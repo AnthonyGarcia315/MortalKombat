@@ -43,7 +43,7 @@ public class SoundManager {
     public enum Sound {
         PUNCH, KICK, UPPERCUT, SWEEP, THROW, SPECIAL,
         HIT, BLOCK, FREEZE, JUMP, KO,
-        MENU_MOVE, MENU_CONFIRM
+        MENU_MOVE, MENU_CONFIRM,TITLE_THEME
     }
 
     private static final Map<Sound, String> FILE_PATHS = new HashMap<>();
@@ -54,13 +54,14 @@ public class SoundManager {
         FILE_PATHS.put(Sound.SWEEP, "/sounds/sweep.wav");
         FILE_PATHS.put(Sound.THROW, "/sounds/throw.wav");
         FILE_PATHS.put(Sound.SPECIAL, "/sounds/special.wav");
-        FILE_PATHS.put(Sound.HIT, "/sounds/hit.mp3");
+        FILE_PATHS.put(Sound.HIT, "/sounds/hit.wav");
         FILE_PATHS.put(Sound.BLOCK, "/sounds/block.wav");
         FILE_PATHS.put(Sound.FREEZE, "/sounds/freeze.wav");
         FILE_PATHS.put(Sound.JUMP, "/sounds/jump.wav");
         FILE_PATHS.put(Sound.KO, "/sounds/ko.wav");
         FILE_PATHS.put(Sound.MENU_MOVE, "/sounds/menu_move.wav");
         FILE_PATHS.put(Sound.MENU_CONFIRM, "/sounds/menu_confirm.wav");
+        FILE_PATHS.put(Sound.TITLE_THEME, "/sounds/themeSong.wav");
     }
 
     /** Cached raw PCM bytes + format per sound, so a Clip can be created fresh every play(). */
@@ -72,10 +73,45 @@ public class SoundManager {
             this.bytes = bytes;
         }
     }
+    /**
+     * Plays background music. Loops continuously and can be stopped manually.
+     */
+    public static void playMusic(Sound sound) {
+        if (muted) return;
+
+        // Stop any existing music before starting a new track
+        stopMusic();
+
+        ClipData data = load(sound);
+        if (data == null) return;
+
+        try {
+            backgroundMusicClip = AudioSystem.getClip();
+            backgroundMusicClip.open(data.format, data.bytes, 0, data.bytes.length);
+
+            // Set the clip to loop indefinitely
+            backgroundMusicClip.loop(Clip.LOOP_CONTINUOUSLY);
+            backgroundMusicClip.start();
+        } catch (LineUnavailableException e) {
+            System.out.println("⚠️ Could not play music " + sound + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Stops the currently playing background music.
+     */
+    public static void stopMusic() {
+        if (backgroundMusicClip != null && backgroundMusicClip.isRunning()) {
+            backgroundMusicClip.stop();
+            backgroundMusicClip.close();
+            backgroundMusicClip = null;
+        }
+    }
 
     // null entries mean "we already tried and it's missing" -- keeps us from
     // re-printing the warning or re-hitting disk every single time a punch lands.
     private static final Map<Sound, ClipData> CACHE = new HashMap<>();
+    private static Clip backgroundMusicClip;
     private static boolean muted = false;
 
     private static ClipData load(Sound sound) {

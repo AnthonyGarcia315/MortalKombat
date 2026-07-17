@@ -369,6 +369,25 @@ public abstract class Fighter extends Entity {
                 // Only clear the hit if they aren't currently in the middle of getting up
                 isHit = false;
                 isFrozen = false;
+
+                // --- THE FIX ---
+                // Previously currentState was left however it was when the
+                // stun ended (HIT_HIGH/HIT_LOW/HIT_CROUCH/THROWN). Player
+                // happened to paper over this because setAnimation() rebuilds
+                // currentState from scratch every non-stunned frame, but
+                // Enemy has no such recompute -- its idle/walk branch only
+                // updates when currentState is ALREADY "IDLE" or "WALK", so
+                // it would sit there looping the hit-reaction pose (looking
+                // stuck/"frozen") until the AI timer eventually fired
+                // makeDecision(), which could jump straight into JUMP_KICK
+                // (or any other attack) without ever passing through IDLE.
+                // Explicitly resetting here makes recovery consistent for
+                // both Player and Enemy.
+                if (currentHealth > 0) {
+                    currentState = "IDLE";
+                    aniIndex = 0;
+                    aniTick = 0;
+                }
             }
         }
     }

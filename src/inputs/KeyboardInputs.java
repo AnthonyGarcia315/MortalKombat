@@ -41,6 +41,7 @@ public class KeyboardInputs implements KeyListener {
             case MENU:
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                     SoundManager.play(SoundManager.Sound.MENU_CONFIRM);
+                    SoundManager.stopMusic();
                     GameState.state = GameState.CHARACTER_SELECT;
                 }
                 break;

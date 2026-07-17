@@ -28,12 +28,13 @@ public class Game implements Runnable {
     private int matchTimeRemaining = MATCH_TIME_SECONDS;
     private int timerTickCounter = 0; // counts UPDATE ticks up to UPS_SET before docking a second
     private boolean timeExpired = false;
+    private boolean koPending = false;
+    private boolean finishHimState = false; // <-- ADD THIS
 
     // True from the instant someone's health hits 0 until the finishing
     // blow's own hit-stun animation has actually finished playing -- see
     // the KO check in update(). Keeps the winner's VICTORY pose / loser's
     // DEFEATED state from stomping the last hit before anyone sees it land.
-    private boolean koPending = false;
 
     public final static int TILES_DEFAULT_SIZE = 32;
     public final static float SCALE = 1.0f; // Change this to 3.0f or 4.0f to make the window massive!
@@ -97,6 +98,7 @@ public class Game implements Runnable {
         window.setLocationRelativeTo(null);
         window.setVisible(true);
         window.setResizable(true);
+        SoundManager.playMusic(SoundManager.Sound.TITLE_THEME);
 
         startGameLoop();
     }
@@ -173,6 +175,7 @@ public class Game implements Runnable {
         timerTickCounter = 0;
         timeExpired = false;
         koPending = false;
+        finishHimState = false; // <-- ADD THIS
         p1PortraitImg = util.LoadSave.GetSprite("/" + playerCharacterName + ".png");
         p2PortraitImg = util.LoadSave.GetSprite("/" + enemyCharacterName + ".png");
         vsScreenTimer=0;
@@ -264,25 +267,48 @@ public class Game implements Runnable {
                 // the hit-stun/knockback has actually finished, same as any
                 // other hit) before locking in the victory pose and ending
                 // the round, so the last hit always gets to land on screen.
-                if (!koPending && (enemy.getCurrentHealth() <= 0 || player.getCurrentHealth() <= 0)) {
-                    koPending = true;
-                }
-                if (koPending && !player.isHit && !enemy.isHit) {
-                    SoundManager.play(SoundManager.Sound.KO);
+                // --- NEW: FINISH HIM & KNOCKOUT LOGIC ---
 
+                // 1. Trigger "Finish Him" dizzy state when someone's health hits 0
+                if (!finishHimState && !koPending && (enemy.getCurrentHealth() <= 0 || player.getCurrentHealth() <= 0)) {
+                    // Wait for the initial fatal blow's knockback to finish
+                    if (!player.isHit && !enemy.isHit) {
+                        finishHimState = true;
+
+                        // Optional: SoundManager.play(SoundManager.Sound.FINISH_HIM);
+
+                        // Lock the loser into the dizzy animation
+                        if (player.getCurrentHealth() <= 0) {
+                            player.setCurrentState("DEFEATED");
+                        } else {
+                            enemy.setCurrentState("DEFEATED");
+                        }
+                    }
+                }
+
+                // 2. Wait for the winner to land the final hit on the dizzy opponent
+                if (finishHimState && !koPending) {
+                    // If the dizzy player gets hit again (isHit becomes true while health is 0)
+                    if ((player.getCurrentHealth() <= 0 && player.isHit) ||
+                            (enemy.getCurrentHealth() <= 0 && enemy.isHit)) {
+                        koPending = true; // The final blow has landed!
+                        SoundManager.play(SoundManager.Sound.KO);
+                    }
+                }
+
+                // 3. End the match after the final hit's stun/knockdown finishes
+                if (koPending && !player.isHit && !enemy.isHit) {
+                    // Make the winner strike their victory pose
                     if (player.getCurrentHealth() > 0) {
                         player.setCurrentState("VICTORY");
-                        enemy.setCurrentState("DEFEATED");
                     } else if (enemy.getCurrentHealth() > 0) {
                         enemy.setCurrentState("VICTORY");
-                        player.setCurrentState("DEFEATED");
-                    } else {
-                        player.setCurrentState("DEFEATED");
-                        enemy.setCurrentState("DEFEATED");
                     }
+                    // NOTE: We DO NOT set the loser to "DEFEATED" here!
+                    // We want them to stay flat on the ground from the final hit.
 
                     GameState.state = GameState.GAME_OVER;
-                    koPending = false; // reset so the next match's KO check starts clean
+                    koPending = false;
                 }
                 break;
 
